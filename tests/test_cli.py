@@ -1,16 +1,12 @@
 import pytest
 
-from yandex_mcp import cli, secrets, tokens
+from yandex_mcp import cli
+from yandex_mcp.auth import store, tokens
 
 
 @pytest.fixture(autouse=True)
-def isolated_backend(monkeypatch, tmp_path):
-    monkeypatch.setenv(secrets.KEYSTORE_ENV, "file")
-    monkeypatch.setattr(secrets.FileBackend, "__init__",
-                        lambda self, path=None: setattr(self, "path", str(tmp_path / "secrets.json")))
-    secrets.reset_backend()
-    yield
-    secrets.reset_backend()
+def _isolated(file_store):
+    """Все тесты модуля работают на временном файловом хранилище."""
 
 
 def test_no_arguments_starts_mcp_server(monkeypatch):
@@ -29,7 +25,7 @@ def test_login_defaults_to_metrika_and_webmaster(monkeypatch):
         captured["name"] = name
         captured["scope"] = scope
 
-    monkeypatch.setattr(cli.oauth, "login", fake_login)
+    monkeypatch.setattr(cli.flow, "login", fake_login)
     cli.main(["login"])
     assert captured["name"] == tokens.UNIFIED_NAME
     assert "metrika:read" in captured["scope"]
@@ -44,7 +40,7 @@ def test_login_single_service_gets_its_own_token(monkeypatch):
         captured["name"] = name
         captured["scope"] = scope
 
-    monkeypatch.setattr(cli.oauth, "login", fake_login)
+    monkeypatch.setattr(cli.flow, "login", fake_login)
     cli.main(["login", "--service", "direct"])
     assert captured["name"] == "yandex-direct"
     assert captured["scope"] == "direct:api"
@@ -53,7 +49,7 @@ def test_login_single_service_gets_its_own_token(monkeypatch):
 def test_setup_stores_client_id(monkeypatch, capsys):
     monkeypatch.setattr("builtins.input", lambda *args: "my-client-id")
     cli.main(["setup", "--no-browser"])
-    assert secrets.get_secret(cli.oauth.CLIENT_ID_ITEM) == "my-client-id"
+    assert store.get_secret(cli.flow.CLIENT_ID_ITEM) == "my-client-id"
 
 
 def test_status_reports_absent_tokens(capsys):
@@ -64,7 +60,7 @@ def test_status_reports_absent_tokens(capsys):
 
 
 def test_status_never_prints_the_token_itself(capsys):
-    secrets.set_secret(f"{tokens.UNIFIED_NAME}-token", "СЕКРЕТНОЕ-ЗНАЧЕНИЕ")
+    store.set_secret(f"{tokens.UNIFIED_NAME}-token", "СЕКРЕТНОЕ-ЗНАЧЕНИЕ")
     cli.main(["status"])
     output = capsys.readouterr().out
     assert "СЕКРЕТНОЕ-ЗНАЧЕНИЕ" not in output
@@ -72,8 +68,8 @@ def test_status_never_prints_the_token_itself(capsys):
 
 
 def test_logout_removes_all_tokens(capsys):
-    secrets.set_secret(f"{tokens.UNIFIED_NAME}-token", "x")
-    secrets.set_secret("yandex-metrika-token", "y")
+    store.set_secret(f"{tokens.UNIFIED_NAME}-token", "x")
+    store.set_secret("yandex-metrika-token", "y")
     cli.main(["logout"])
-    assert secrets.get_secret(f"{tokens.UNIFIED_NAME}-token") is None
-    assert secrets.get_secret("yandex-metrika-token") is None
+    assert store.get_secret(f"{tokens.UNIFIED_NAME}-token") is None
+    assert store.get_secret("yandex-metrika-token") is None

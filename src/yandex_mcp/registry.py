@@ -1,6 +1,6 @@
-"""Сборка реестра тулов из отдельных модулей по сервисам."""
+"""Реестр инструментов: сборка TOOLS/HANDLERS из модулей по сервисам."""
 
-from . import direct, metrika, webmaster, wordstat
+from .tools import direct, metrika, webmaster, wordstat
 
 TOOLS = metrika.TOOLS + webmaster.TOOLS + direct.TOOLS + wordstat.TOOLS
 

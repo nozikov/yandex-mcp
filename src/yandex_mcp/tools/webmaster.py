@@ -3,7 +3,7 @@
 import urllib.parse
 
 from ..httpclient import http_get, http_post_json
-from ..tokens import service_token
+from ..auth.tokens import service_token
 
 WEBMASTER = "https://api.webmaster.yandex.net/v4"
 

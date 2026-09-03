@@ -15,7 +15,7 @@ import urllib.error
 import urllib.request
 
 from ..httpclient import http_post_json
-from ..tokens import service_token
+from ..auth.tokens import service_token
 from ..scrub import scrub
 
 DIRECT = "https://api.direct.yandex.com/json/v5"

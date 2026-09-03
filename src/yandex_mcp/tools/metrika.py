@@ -4,7 +4,7 @@ import datetime
 import os
 
 from ..httpclient import http_get
-from ..tokens import service_token
+from ..auth.tokens import service_token
 
 STAT = "https://api-metrika.yandex.net/stat/v1/data"
 MANAGEMENT = "https://api-metrika.yandex.net/management/v1"

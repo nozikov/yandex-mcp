@@ -117,17 +117,26 @@ yandex-mcp logout               # удалить токены из хранил�
 ## Структура проекта
 
 ```
-yandex_mcp/
+src/yandex_mcp/
   cli.py               # yandex-mcp: без аргументов сервер, с аргументами настройка
-  server.py            # JSON-RPC/stdio диспетчер
-  secrets.py           # выбор хранилища: Keychain / secret-tool / файл 0600
-  tokens.py            # токен сервиса, с фолбэком на общий
-  scrub.py             # вычищение секретов из ответов и ошибок
+  server.py            # JSON-RPC поверх stdio
+  registry.py          # реестр инструментов: сборка TOOLS/HANDLERS
   httpclient.py        # urllib-обёртка: заголовки, единая обработка ошибок
+  scrub.py             # вычищение секретов из ответов и ошибок
+  auth/
+    store.py           # выбор хранилища: Keychain / secret-tool / файл 0600
+    tokens.py          # токен сервиса, с фолбэком на общий
+    flow.py            # PKCE-вход в Яндекс
+    callback.py        # приём redirect на localhost
   tools/               # по модулю на сервис: metrika, webmaster, direct, wordstat
-  oauth/               # PKCE-флоу, локальный приём redirect, шим старой команды
 tests/
+  conftest.py          # изолированное файловое хранилище вместо системного
+  auth/ tools/         # структура повторяет исходники
 ```
+
+Код лежит в `src/`, а не в корне: при таком раскладе `import yandex_mcp` берёт
+**установленный** пакет, а не случайно подхваченную рабочую директорию — иначе тесты
+могут проходить на коде, которого нет в собранном колесе.
 
 ## Разработка
 

@@ -11,7 +11,7 @@ import time
 import urllib.request
 
 from ..httpclient import perform
-from ..tokens import service_token
+from ..auth.tokens import service_token
 
 LIVE_V4 = "https://api.direct.yandex.ru/live/v4/json/"
 

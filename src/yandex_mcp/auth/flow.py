@@ -11,7 +11,7 @@ import hashlib
 import http.server
 import json
 import os
-import secrets as secrets_module
+import secrets
 import sys
 import time
 import urllib.error
@@ -19,9 +19,11 @@ import urllib.parse
 import urllib.request
 import webbrowser
 
-from ..secrets import backend, get_secret, set_secret
 from .callback import CallbackHandler
+from .store import backend, get_secret, set_secret
 
+# имена записей в хранилище, а не команд: по ним уже лежат выданные секреты
+# у тех, кто ставил ранние версии, поэтому переименовывать нельзя
 CLIENT_ID_ITEM = "yandex-oauth-client-id"
 CLIENT_SECRET_ITEM = "yandex-oauth-client-secret"
 CLIENT_ID_ENV = "YANDEX_MCP_CLIENT_ID"
@@ -115,11 +117,11 @@ def login(name, scope, manual=False, no_browser=False):
     identifier = client_id()
     redirect_uri = MANUAL_REDIRECT_URI if manual else LOCAL_REDIRECT_URI
 
-    verifier = base64.urlsafe_b64encode(secrets_module.token_bytes(64)).decode().rstrip("=")
+    verifier = base64.urlsafe_b64encode(secrets.token_bytes(64)).decode().rstrip("=")
     challenge = base64.urlsafe_b64encode(
         hashlib.sha256(verifier.encode()).digest()
     ).decode().rstrip("=")
-    state = secrets_module.token_urlsafe(16)
+    state = secrets.token_urlsafe(16)
 
     url = AUTHORIZE_URL + "?" + urllib.parse.urlencode({
         "response_type": "code",

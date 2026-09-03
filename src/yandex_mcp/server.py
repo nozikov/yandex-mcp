@@ -4,7 +4,7 @@ import json
 import sys
 
 from .scrub import scrub
-from .tools import HANDLERS, TOOL_SCHEMAS
+from .registry import HANDLERS, TOOL_SCHEMAS
 
 PROTOCOL_VERSION = "2024-11-05"
 SERVER_INFO = {"name": "yandex", "version": "1.1.0"}

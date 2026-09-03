@@ -1,6 +1,6 @@
 """Получение OAuth-токена сервиса из хранилища секретов."""
 
-from .secrets import backend, get_secret
+from .store import backend, get_secret
 
 # токен, выданный единым входом `yandex-mcp login` — общий для всех сервисов
 UNIFIED_NAME = "yandex"

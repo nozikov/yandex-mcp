@@ -11,9 +11,9 @@ import sys
 import webbrowser
 
 from . import server
-from .oauth import oauth
-from .secrets import backend, delete_secret, get_secret, set_secret
-from .tokens import UNIFIED_NAME
+from .auth import flow
+from .auth.store import backend, delete_secret, get_secret, set_secret
+from .auth.tokens import UNIFIED_NAME
 
 REGISTER_URL = "https://oauth.yandex.ru/client/new"
 
@@ -25,7 +25,7 @@ SETUP_STEPS = f"""
 2. Название — любое, например «yandex-mcp».
 3. Платформы → «Веб-сервисы» → Redirect URI:
 
-       {oauth.LOCAL_REDIRECT_URI}
+       {flow.LOCAL_REDIRECT_URI}
 
    Это адрес на твоём же компьютере: токен никуда наружу не уходит.
 4. Доступы — выбери те, что нужны:
@@ -40,7 +40,7 @@ Client secret не нужен — используется PKCE.
 
 
 def _scope_for(services):
-    return " ".join(oauth.SERVICE_SCOPES[service] for service in services)
+    return " ".join(flow.SERVICE_SCOPES[service] for service in services)
 
 
 def command_setup(args):
@@ -50,40 +50,40 @@ def command_setup(args):
     identifier = input("ClientID: ").strip()
     if not identifier:
         sys.exit("ClientID не введён")
-    set_secret(oauth.CLIENT_ID_ITEM, identifier)
+    set_secret(flow.CLIENT_ID_ITEM, identifier)
     print(f"\nСохранено в: {backend().describe()}")
     print("Дальше: yandex-mcp login")
 
 
 def command_login(args):
     if args.exchange:
-        oauth.exchange(args.exchange)
+        flow.exchange(args.exchange)
         return
 
-    services = args.service or list(oauth.DEFAULT_SERVICES)
-    unknown = [s for s in services if s not in oauth.SERVICE_SCOPES]
+    services = args.service or list(flow.DEFAULT_SERVICES)
+    unknown = [s for s in services if s not in flow.SERVICE_SCOPES]
     if unknown:
         sys.exit(f"неизвестный сервис: {', '.join(unknown)}; "
-                 f"доступны: {', '.join(oauth.SERVICE_SCOPES)}")
+                 f"доступны: {', '.join(flow.SERVICE_SCOPES)}")
 
     # один сервис — отдельный токен (least privilege), несколько — общий токен
     name = f"yandex-{services[0]}" if len(services) == 1 else UNIFIED_NAME
-    oauth.login(name, _scope_for(services), manual=args.manual, no_browser=args.no_browser)
+    flow.login(name, _scope_for(services), manual=args.manual, no_browser=args.no_browser)
 
 
 def _token_names():
-    return [UNIFIED_NAME] + [f"yandex-{service}" for service in oauth.SERVICE_SCOPES]
+    return [UNIFIED_NAME] + [f"yandex-{service}" for service in flow.SERVICE_SCOPES]
 
 
 def command_status(args):
-    has_client_id = bool(os.environ.get(oauth.CLIENT_ID_ENV) or get_secret(oauth.CLIENT_ID_ITEM))
+    has_client_id = bool(os.environ.get(flow.CLIENT_ID_ENV) or get_secret(flow.CLIENT_ID_ITEM))
     print(f"хранилище: {backend().describe()}")
     print(f"client_id: {'задан' if has_client_id else 'нет — выполни `yandex-mcp setup`'}")
     print()
     names = _token_names()
     found = False
     for name in names:
-        info = oauth.status(name)
+        info = flow.status(name)
         if not info:
             continue
         found = True
@@ -116,7 +116,7 @@ def build_parser():
 
     login_parser = subparsers.add_parser("login", help="вход через браузер")
     login_parser.add_argument("--service", action="append",
-                              choices=sorted(oauth.SERVICE_SCOPES),
+                              choices=sorted(flow.SERVICE_SCOPES),
                               help="можно повторять; по умолчанию metrika + webmaster")
     login_parser.add_argument("--manual", action="store_true",
                               help="код подтверждения вводится руками (redirect на страницу Яндекса)")

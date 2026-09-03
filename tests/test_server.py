@@ -1,7 +1,7 @@
 import pytest
 
 from yandex_mcp import server
-from yandex_mcp.tools import HANDLERS
+from yandex_mcp.registry import HANDLERS
 
 
 def test_initialize_returns_protocol_info():
