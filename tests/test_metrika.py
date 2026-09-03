@@ -34,6 +34,42 @@ def test_summary_handles_empty_totals(monkeypatch):
     assert "посетители: 0" in text
 
 
+def test_summary_handles_empty_goal_totals(monkeypatch):
+    # регрессия: reaches.get('totals', [0])[0] падал IndexError на "totals": [] у цели
+    # (дефолт .get(key, default) не срабатывает, раз ключ присутствует)
+    monkeypatch.setattr(metrika, "keychain_token", lambda name: "fake-token")
+
+    def fake_http_get(url, token, params=None):
+        if "goals" in url:
+            return {"goals": [{"id": 1, "name": "цель без данных"}]}
+        return {"totals": []}
+
+    monkeypatch.setattr(metrika, "http_get", fake_http_get)
+    text = metrika.tool_metrika_summary({"counter_id": "1"})
+    assert "цель без данных (id 1): 0" in text
+
+
+def test_summary_batches_goal_metrics_into_one_request(monkeypatch):
+    monkeypatch.setattr(metrika, "keychain_token", lambda name: "fake-token")
+    goal_requests = []
+
+    def fake_http_get(url, token, params=None):
+        if "goals" in url:
+            return {"goals": [{"id": i, "name": f"цель {i}"} for i in range(1, 4)]}
+        metrics = (params or {}).get("metrics", "")
+        if metrics.startswith("ym:s:goal"):
+            goal_requests.append(metrics)
+            return {"totals": [10, 20, 30]}
+        return {"totals": []}
+
+    monkeypatch.setattr(metrika, "http_get", fake_http_get)
+    text = metrika.tool_metrika_summary({"counter_id": "1"})
+    assert len(goal_requests) == 1  # три цели — один запрос, не три
+    assert "цель 1 (id 1): 10" in text
+    assert "цель 2 (id 2): 20" in text
+    assert "цель 3 (id 3): 30" in text
+
+
 def test_default_previous_period_same_length_immediately_before():
     prev1, prev2 = metrika._default_previous_period("2024-01-16", "2024-01-31")
     assert prev1 == "2023-12-31"

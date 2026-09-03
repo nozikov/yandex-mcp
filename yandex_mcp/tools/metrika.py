@@ -47,12 +47,20 @@ def tool_metrika_summary(arguments):
         "",
         "Цели:",
     ]
-    for goal in goals.get("goals", []):
+    goals = goals.get("goals", [])
+    # метрики целей запрашиваются пачками — иначе N целей дают N+2 последовательных
+    # HTTP-запроса; Reporting API исторически ограничивает ~20 метрик за вызов
+    GOAL_CHUNK = 20
+    for chunk_start in range(0, len(goals), GOAL_CHUNK):
+        chunk = goals[chunk_start:chunk_start + GOAL_CHUNK]
         reaches = http_get(STAT, token, {
-            "ids": counter, "metrics": f"ym:s:goal{goal['id']}reaches",
+            "ids": counter,
+            "metrics": ",".join(f"ym:s:goal{goal['id']}reaches" for goal in chunk),
             "date1": date1, "date2": date2,
         })
-        lines.append(f"  {goal['name']} (id {goal['id']}): {reaches.get('totals', [0])[0]:.0f}")
+        values = reaches.get("totals") or [0] * len(chunk)
+        for goal, value in zip(chunk, values):
+            lines.append(f"  {goal['name']} (id {goal['id']}): {value:.0f}")
     return "\n".join(lines)
 
 

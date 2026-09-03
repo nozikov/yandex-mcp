@@ -32,7 +32,11 @@ def post_token(params, allow_retry_without_redirect=False):
             return json.load(response)
     except urllib.error.HTTPError as error:
         # тело ошибки Яндекса может содержать эхо переданных параметров — не печатаем его целиком
-        payload = json.loads(error.read().decode() or "{}")
+        raw = error.read().decode(errors="replace")
+        try:
+            payload = json.loads(raw or "{}")
+        except json.JSONDecodeError:
+            payload = {}
         description = payload.get("error_description", "")
         # часть приложений не принимает redirect_uri в обмене кода — пробуем без него
         if allow_retry_without_redirect and "redirect" in description.lower():

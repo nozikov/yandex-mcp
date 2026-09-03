@@ -60,12 +60,14 @@ def tool_wordstat_phrases(arguments):
         if not rows:
             lines.append("  спроса нет")
         for row in rows[:top]:
-            lines.append(f"  {row.get('Shows'):>8}  {row.get('Phrase')}")
+            lines.append(f"  {row.get('Shows') or 0:>8}  {row.get('Phrase')}")
         lines.append("")
     try:
         live("DeleteWordstatReport", report_id)
-    except RuntimeError:
-        pass  # отчёт уже получен — не терять его из-за сбоя на уборке
+    except (RuntimeError, ValueError):
+        # RuntimeError — сеть/HTTP-ошибка, ValueError (JSONDecodeError — его подкласс) —
+        # не-JSON тело ответа; в обоих случаях отчёт уже получен, терять его не нужно
+        pass
     return "\n".join(lines)
 
 
