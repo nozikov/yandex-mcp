@@ -1,0 +1,262 @@
+#!/usr/bin/env python3
+"""
+Получение и обновление OAuth-токенов Яндекса.
+
+Инвариант: значения секретов никогда не печатаются в stdout/stderr —
+только отпечаток sha256:xxxxxxxx (как в SecretScrubber бэкенда).
+Всё хранится в Keychain, на диске в открытом виде ничего не остаётся.
+
+Подготовка (один раз, значения вводятся интерактивно):
+    security add-generic-password -s yandex-oauth-client-id     -a "$USER" -w
+    security add-generic-password -s yandex-oauth-client-secret -a "$USER" -w
+
+Использование:
+    ./yandex-oauth.py login  --name yandex-metrika --scope "metrika:read" --manual
+    ./yandex-oauth.py login  --name yandex-direct-ro --scope "direct:api" --manual
+    ./yandex-oauth.py refresh --name yandex-metrika
+    ./yandex-oauth.py status  --name yandex-metrika
+
+--manual — для приложений, у которых Redirect URI оставлен дефолтным
+(https://oauth.yandex.ru/verification_code): код подтверждения показывается
+на странице и вводится в терминал. Без флага код ловится на localhost:8765,
+но этот адрес должен быть заранее прописан в настройках приложения.
+"""
+
+import argparse
+import base64
+import hashlib
+import http.server
+import json
+import os
+import secrets
+import subprocess
+import sys
+import time
+import urllib.parse
+import urllib.request
+import webbrowser
+
+CLIENT_ID_ITEM = "yandex-oauth-client-id"
+CLIENT_SECRET_ITEM = "yandex-oauth-client-secret"
+PENDING_FILE = os.path.expanduser("~/.cache/yandex-oauth-pending.json")
+REDIRECT_PORT = 8765
+LOCAL_REDIRECT_URI = f"http://localhost:{REDIRECT_PORT}/callback"
+MANUAL_REDIRECT_URI = "https://oauth.yandex.ru/verification_code"
+AUTHORIZE_URL = "https://oauth.yandex.ru/authorize"
+TOKEN_URL = "https://oauth.yandex.ru/token"
+
+
+def fingerprint(value):
+    if not value:
+        return "sha256:none"
+    return "sha256:" + hashlib.sha256(value.encode()).hexdigest()[:8]
+
+
+def keychain_get(item, required=True):
+    result = subprocess.run(
+        ["security", "find-generic-password", "-s", item, "-w"],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        if required:
+            sys.exit(f"нет записи в Keychain: {item}")
+        return None
+    return result.stdout.strip()
+
+
+def keychain_set(item, value):
+    subprocess.run(["security", "delete-generic-password", "-s", item],
+                   capture_output=True)
+    result = subprocess.run(
+        ["security", "add-generic-password", "-s", item,
+         "-a", os.environ.get("USER", "-"), "-w", value, "-U"],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        sys.exit(f"не удалось записать в Keychain: {item}")
+
+
+def post_token(params, allow_retry_without_redirect=False):
+    body = urllib.parse.urlencode(params).encode()
+    request = urllib.request.Request(TOKEN_URL, data=body, method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as error:
+        # тело ошибки Яндекса может содержать эхо переданных параметров — не печатаем его целиком
+        payload = json.loads(error.read().decode() or "{}")
+        description = payload.get("error_description", "")
+        # часть приложений не принимает redirect_uri в обмене кода — пробуем без него
+        if allow_retry_without_redirect and "redirect" in description.lower():
+            retried = dict(params)
+            retried.pop("redirect_uri", None)
+            return post_token(retried)
+        sys.exit(f"OAuth отказал: {payload.get('error', 'unknown')} — "
+                 f"{description or 'без описания'}")
+    except urllib.error.URLError as error:
+        sys.exit(f"oauth.yandex.ru недоступен ({error.reason}) — повтори команду")
+
+
+def save_tokens(name, tokens):
+    keychain_set(f"{name}-token", tokens["access_token"])
+    if tokens.get("refresh_token"):
+        keychain_set(f"{name}-refresh", tokens["refresh_token"])
+    expires_at = int(time.time()) + int(tokens.get("expires_in", 0))
+    keychain_set(f"{name}-expires", str(expires_at))
+    print(f"access_token  {fingerprint(tokens['access_token'])}")
+    print(f"refresh_token {fingerprint(tokens.get('refresh_token'))}")
+    print(f"истекает      {time.strftime('%Y-%m-%d', time.localtime(expires_at))}")
+    print(f"\nKeychain: {name}-token, {name}-refresh, {name}-expires")
+
+
+class CallbackHandler(http.server.BaseHTTPRequestHandler):
+    code = None
+    state = None
+
+    def do_GET(self):
+        query = urllib.parse.urlparse(self.path).query
+        params = urllib.parse.parse_qs(query)
+        CallbackHandler.code = params.get("code", [None])[0]
+        CallbackHandler.state = params.get("state", [None])[0]
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.end_headers()
+        message = "Готово, вернись в терминал." if CallbackHandler.code else "Код не получен."
+        self.wfile.write(f"<html><body><h3>{message}</h3></body></html>".encode())
+
+    def log_message(self, *args):
+        pass  # URL с кодом не должен попасть в вывод
+
+
+def login(name, scope, manual, no_browser=False):
+    client_id = keychain_get(CLIENT_ID_ITEM)
+    client_secret = keychain_get(CLIENT_SECRET_ITEM)
+    redirect_uri = MANUAL_REDIRECT_URI if manual else LOCAL_REDIRECT_URI
+
+    verifier = base64.urlsafe_b64encode(secrets.token_bytes(64)).decode().rstrip("=")
+    challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(verifier.encode()).digest()
+    ).decode().rstrip("=")
+    state = secrets.token_urlsafe(16)
+
+    url = AUTHORIZE_URL + "?" + urllib.parse.urlencode({
+        "response_type": "code",
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "scope": scope,
+        "state": state,
+        "code_challenge": challenge,
+        "code_challenge_method": "S256",
+    })
+
+    if no_browser:
+        # verifier переживает завершение процесса — обмен делается командой exchange
+        os.makedirs(os.path.dirname(PENDING_FILE), exist_ok=True)
+        with open(os.open(PENDING_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as pending:
+            json.dump({"name": name, "verifier": verifier,
+                       "redirect_uri": redirect_uri, "manual": manual}, pending)
+        print(f"AUTH_URL {url}", flush=True)
+        print("дальше: yandex-oauth exchange --code <код со страницы>")
+        return
+
+    print(f"Открываю браузер. Запрашиваемые права: {scope}")
+    webbrowser.open(url)
+
+    if manual:
+        print("\nПодтверди доступ — на странице появится код подтверждения.")
+        print("Вставь его сюда (код одноразовый, живёт 10 минут):")
+        code = input("код: ").strip()
+        if not code:
+            sys.exit("код не введён")
+    else:
+        server = http.server.HTTPServer(("127.0.0.1", REDIRECT_PORT), CallbackHandler)
+        server.timeout = 180
+        server.handle_request()
+        if not CallbackHandler.code:
+            sys.exit("код авторизации не получен")
+        if CallbackHandler.state != state:
+            sys.exit("state не совпал — запрос мог быть подменён, повтори")
+        code = CallbackHandler.code
+
+    tokens = post_token({
+        "grant_type": "authorization_code",
+        "code": code,
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "redirect_uri": redirect_uri,
+        "code_verifier": verifier,
+    }, allow_retry_without_redirect=manual)
+    save_tokens(name, tokens)
+
+
+def exchange(code):
+    if not os.path.exists(PENDING_FILE):
+        sys.exit("нет незавершённой авторизации — сначала login --no-browser")
+    with open(PENDING_FILE) as pending_file:
+        pending = json.load(pending_file)
+
+    tokens = post_token({
+        "grant_type": "authorization_code",
+        "code": code,
+        "client_id": keychain_get(CLIENT_ID_ITEM),
+        "client_secret": keychain_get(CLIENT_SECRET_ITEM),
+        "redirect_uri": pending["redirect_uri"],
+        "code_verifier": pending["verifier"],
+    }, allow_retry_without_redirect=pending.get("manual", False))
+
+    os.remove(PENDING_FILE)
+    save_tokens(pending["name"], tokens)
+
+
+def refresh(name):
+    refresh_token = keychain_get(f"{name}-refresh")
+    tokens = post_token({
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token,
+        "client_id": keychain_get(CLIENT_ID_ITEM),
+        "client_secret": keychain_get(CLIENT_SECRET_ITEM),
+    })
+    save_tokens(name, tokens)
+
+
+def status(name):
+    token = keychain_get(f"{name}-token", required=False)
+    if not token:
+        sys.exit(f"токен {name} не найден в Keychain")
+    expires_at = int(keychain_get(f"{name}-expires", required=False) or 0)
+    days_left = (expires_at - int(time.time())) // 86400
+    print(f"{name}: {fingerprint(token)}, осталось дней: {days_left}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    login_parser = subparsers.add_parser("login")
+    login_parser.add_argument("--name", required=True, help="префикс записей в Keychain")
+    login_parser.add_argument("--scope", required=True, help="через пробел, напр. 'metrika:read'")
+    login_parser.add_argument("--manual", action="store_true",
+                              help="redirect на страницу verification_code, код вводится руками")
+    login_parser.add_argument("--no-browser", action="store_true",
+                              help="не открывать браузер, напечатать ссылку авторизации")
+
+    exchange_parser = subparsers.add_parser("exchange")
+    exchange_parser.add_argument("--code", required=True, help="код подтверждения со страницы")
+
+    for command in ("refresh", "status"):
+        sub = subparsers.add_parser(command)
+        sub.add_argument("--name", required=True)
+
+    args = parser.parse_args()
+    if args.command == "login":
+        login(args.name, args.scope, args.manual, args.no_browser)
+    elif args.command == "exchange":
+        exchange(args.code)
+    elif args.command == "refresh":
+        refresh(args.name)
+    else:
+        status(args.name)
+
+
+if __name__ == "__main__":
+    main()
