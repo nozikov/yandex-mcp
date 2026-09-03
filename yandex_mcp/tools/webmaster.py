@@ -70,6 +70,53 @@ def tool_webmaster_queries(arguments):
     return "\n".join(lines)
 
 
+def tool_webmaster_indexing(arguments):
+    token = keychain_token("yandex-webmaster")
+    user_id, hosts = _webmaster_host(token)
+    params = {}
+    if arguments.get("date_from"):
+        params["date_from"] = arguments["date_from"]
+    if arguments.get("date_to"):
+        params["date_to"] = arguments["date_to"]
+
+    lines = []
+    for host in hosts:
+        result = http_get(
+            f"{WEBMASTER}/user/{user_id}/hosts/{host['host_id']}/search-urls/in-search/history",
+            token, params or None,
+        )
+        history = result.get("history", [])
+        lines.append(f"{host.get('ascii_host_url')} — динамика страниц в поиске:")
+        if not history:
+            lines.append("  нет данных")
+            continue
+        for point in history:
+            lines.append(f"  {str(point.get('date', ''))[:10]}: {point.get('value')}")
+    return "\n".join(lines)
+
+
+def tool_webmaster_sitemaps(arguments):
+    token = keychain_token("yandex-webmaster")
+    user_id, hosts = _webmaster_host(token)
+    limit = min(int(arguments.get("limit", 50)), 100)
+
+    lines = []
+    for host in hosts:
+        result = http_get(
+            f"{WEBMASTER}/user/{user_id}/hosts/{host['host_id']}/sitemaps",
+            token, {"limit": limit},
+        )
+        sitemaps = result.get("sitemaps", [])
+        lines.append(f"{host.get('ascii_host_url')} — sitemaps: {len(sitemaps)}")
+        for sitemap in sitemaps:
+            lines.append(
+                f"  {sitemap.get('sitemap_url')}: "
+                f"{sitemap.get('urls_count')} url, "
+                f"ошибок {sitemap.get('errors_count')}, "
+                f"обновлён {str(sitemap.get('last_access_date') or '—')[:10]}")
+    return "\n".join(lines)
+
+
 def tool_webmaster_recrawl(arguments):
     urls = arguments.get("urls") or []
     if not urls:
@@ -110,6 +157,29 @@ TOOLS = [
             "properties": {"limit": {"type": "integer", "description": "до 100, по умолчанию 25"}},
         },
         "handler": tool_webmaster_queries,
+    },
+    {
+        "name": "webmaster_indexing",
+        "description": "Динамика количества страниц сайта в поиске Яндекса по датам "
+                       "(GET .../search-urls/in-search/history) — рост/падение индексации во времени.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "date_from": {"type": "string", "description": "YYYY-MM-DD, опционально"},
+                "date_to": {"type": "string", "description": "YYYY-MM-DD, опционально"},
+            },
+        },
+        "handler": tool_webmaster_indexing,
+    },
+    {
+        "name": "webmaster_sitemaps",
+        "description": "Sitemap-файлы, которые видит Яндекс для сайта: URL, число адресов в нём, "
+                       "количество ошибок, дата последнего обращения робота.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"limit": {"type": "integer", "description": "до 100, по умолчанию 50"}},
+        },
+        "handler": tool_webmaster_sitemaps,
     },
     {
         "name": "webmaster_recrawl",

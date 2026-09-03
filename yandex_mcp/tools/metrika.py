@@ -1,5 +1,6 @@
-"""Инструменты Яндекс Метрики: сводка, произвольный отчёт, список счётчиков."""
+"""Инструменты Яндекс Метрики: сводка, произвольный отчёт, сравнение периодов, счётчики."""
 
+import datetime
 import os
 
 from ..httpclient import http_get
@@ -83,6 +84,88 @@ def tool_metrika_report(arguments):
     return "\n".join(lines) if len(lines) > 2 else "данных нет"
 
 
+def _resolve_date_token(token, today):
+    token = str(token)
+    if token == "today":
+        return today
+    if token == "yesterday":
+        return today - datetime.timedelta(days=1)
+    if token.endswith("daysAgo"):
+        return today - datetime.timedelta(days=int(token[:-len("daysAgo")]))
+    return datetime.date.fromisoformat(token)
+
+
+def _default_previous_period(date1, date2):
+    """Период B по умолчанию: такой же длины, вплотную перед периодом A.
+
+    Относительные токены (today/yesterday/NdaysAgo) резолвятся от локальной
+    даты машины — это приближение к тому, что Метрика считает "сегодня" в
+    таймзоне счётчика; для точности передавай явные date1/date2 или
+    prev_date1/prev_date2 в формате YYYY-MM-DD.
+    """
+    today = datetime.date.today()
+    start = _resolve_date_token(date1, today)
+    end = _resolve_date_token(date2, today)
+    length = (end - start).days
+    prev_end = start - datetime.timedelta(days=1)
+    prev_start = prev_end - datetime.timedelta(days=length)
+    return prev_start.isoformat(), prev_end.isoformat()
+
+
+def tool_metrika_compare(arguments):
+    token = keychain_token("yandex-metrika")
+    counter = _resolve_counter(arguments)
+    metrics = arguments["metrics"]
+    metric_names = metrics.split(",")
+    dimensions = arguments.get("dimensions")
+    limit = min(int(arguments.get("limit", 10)), 50)
+
+    date1_a = arguments.get("date1", "30daysAgo")
+    date2_a = arguments.get("date2", "yesterday")
+    if arguments.get("prev_date1") and arguments.get("prev_date2"):
+        date1_b, date2_b = arguments["prev_date1"], arguments["prev_date2"]
+    else:
+        date1_b, date2_b = _default_previous_period(date1_a, date2_a)
+
+    def fetch(date1, date2):
+        params = {"ids": counter, "metrics": metrics, "date1": date1, "date2": date2, "limit": limit}
+        if dimensions:
+            params["dimensions"] = dimensions
+        if arguments.get("filters"):
+            params["filters"] = arguments["filters"]
+        return http_get(STAT, token, params)
+
+    current = fetch(date1_a, date2_a)
+    previous = fetch(date1_b, date2_b)
+
+    def fmt_row(label, values_a, values_b):
+        parts = []
+        for name, a, b in zip(metric_names, values_a, values_b):
+            delta = a - b
+            pct = (delta / b * 100) if b else (100.0 if a else 0.0)
+            parts.append(f"{name}: {a:g} vs {b:g} ({delta:+g}, {pct:+.1f}%)")
+        return f"{label}: " + "; ".join(parts)
+
+    lines = [f"Счётчик {counter}",
+             f"период A: {date1_a} — {date2_a}",
+             f"период B: {date1_b} — {date2_b}", ""]
+
+    totals_a = current.get("totals") or [0] * len(metric_names)
+    totals_b = previous.get("totals") or [0] * len(metric_names)
+    lines.append(fmt_row("итого", totals_a, totals_b))
+
+    if dimensions:
+        lines.append("")
+        rows_b = {tuple((d.get("name") or d.get("id")) for d in row["dimensions"]): row["metrics"]
+                  for row in previous.get("data", [])}
+        for row in current.get("data", []):
+            key = tuple((d.get("name") or d.get("id")) for d in row["dimensions"])
+            values_b = rows_b.get(key, [0] * len(metric_names))
+            lines.append(fmt_row(" / ".join(key) or "—", row["metrics"], values_b))
+
+    return "\n".join(lines)
+
+
 def tool_metrika_counters(arguments):
     token = keychain_token("yandex-metrika")
     result = http_get(f"{MANAGEMENT}/counters", token)
@@ -133,6 +216,30 @@ TOOLS = [
             "required": ["metrics"],
         },
         "handler": tool_metrika_report,
+    },
+    {
+        "name": "metrika_compare",
+        "description": "Сравнение метрик между двумя периодами — для вопросов вроде «как изменился "
+                       "трафик за последний месяц». Период B по умолчанию: такой же длины, вплотную "
+                       "перед периодом A (можно задать явно через prev_date1/prev_date2). Если задан "
+                       "dimensions — сравнение построчно по значениям измерения, иначе только по итогам.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "metrics": {"type": "string", "description": "через запятую, обязательно"},
+                "dimensions": {"type": "string", "description": "через запятую"},
+                "date1": {"type": "string", "description": "начало периода A, по умолчанию 30daysAgo"},
+                "date2": {"type": "string", "description": "конец периода A, по умолчанию yesterday"},
+                "prev_date1": {"type": "string", "description": "начало периода B; по умолчанию — "
+                                                                 "период той же длины перед периодом A"},
+                "prev_date2": {"type": "string", "description": "конец периода B"},
+                "filters": {"type": "string", "description": "язык фильтров Метрики"},
+                "limit": {"type": "integer", "description": "строк при сравнении по dimensions, до 50"},
+                "counter_id": {"type": "string"},
+            },
+            "required": ["metrics"],
+        },
+        "handler": tool_metrika_compare,
     },
     {
         "name": "metrika_counters",

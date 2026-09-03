@@ -14,9 +14,10 @@ def test_tools_list_exposes_all_tool_names():
     result = server.handle({"method": "tools/list"})
     names = {tool["name"] for tool in result["tools"]}
     assert names == {
-        "metrika_summary", "metrika_report", "metrika_counters",
-        "webmaster_summary", "webmaster_queries", "webmaster_recrawl",
-        "direct_campaigns", "wordstat_phrases",
+        "metrika_summary", "metrika_report", "metrika_compare", "metrika_counters",
+        "webmaster_summary", "webmaster_queries", "webmaster_indexing",
+        "webmaster_sitemaps", "webmaster_recrawl",
+        "direct_campaigns", "direct_report", "wordstat_phrases",
     }
 
 
