@@ -123,7 +123,7 @@ def tool_metrika_summary(arguments):
     goals = http_get(f"{METRIKA_MANAGEMENT}/counter/{counter}/goals", token)
 
     lines = [f"Счётчик {counter}, период {date1} — {date2}", ""]
-    visits, users, bounce, duration, depth = totals.get("totals", [0] * 5)
+    visits, users, bounce, duration, depth = totals.get("totals") or [0] * 5
     lines += [
         f"визиты: {visits:.0f}",
         f"посетители: {users:.0f}",
@@ -233,6 +233,15 @@ def tool_webmaster_queries(arguments):
     return "\n".join(lines)
 
 
+def _host_matches(url, host):
+    netloc = urllib.parse.urlsplit(url).netloc.lower()
+    for key in ("unicode_host_url", "ascii_host_url"):
+        candidate = host.get(key)
+        if candidate and urllib.parse.urlsplit(candidate).netloc.lower() == netloc:
+            return True
+    return False
+
+
 def tool_webmaster_recrawl(arguments):
     urls = arguments.get("urls") or []
     if not urls:
@@ -243,8 +252,7 @@ def tool_webmaster_recrawl(arguments):
     user_id, hosts = _webmaster_host(token)
     lines = []
     for url in urls:
-        host = next((h for h in hosts if url.startswith(h.get("unicode_host_url", "\0"))
-                     or url.startswith(h.get("ascii_host_url", "\0"))), None)
+        host = next((h for h in hosts if _host_matches(url, h)), None)
         if host is None:
             lines.append(f"{url}: нет подтверждённого в Вебмастере хоста для этого URL")
             continue
@@ -345,7 +353,10 @@ def tool_wordstat_phrases(arguments):
         for row in rows[:top]:
             lines.append(f"  {row.get('Shows'):>8}  {row.get('Phrase')}")
         lines.append("")
-    live("DeleteWordstatReport", report_id)
+    try:
+        live("DeleteWordstatReport", report_id)
+    except RuntimeError:
+        pass  # отчёт уже получен — не терять его из-за сбоя на уборке
     return "\n".join(lines)
 
 
