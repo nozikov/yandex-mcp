@@ -18,7 +18,9 @@ def test_no_arguments_starts_mcp_server(monkeypatch):
     assert started["yes"] is True
 
 
-def test_login_defaults_to_metrika_and_webmaster(monkeypatch):
+def test_login_asks_for_everything_by_default(monkeypatch):
+    # что доступно на самом деле, решает панель Яндекса, а не флаги здесь:
+    # просим всё, что приложение может дать
     captured = {}
 
     def fake_login(name, scope, manual=False, no_browser=False):
@@ -30,7 +32,36 @@ def test_login_defaults_to_metrika_and_webmaster(monkeypatch):
     assert captured["name"] == tokens.entry()
     assert "metrika:read" in captured["scope"]
     assert "webmaster:hosts:read-write" in captured["scope"]
-    assert "direct:api" not in captured["scope"]  # требует отдельной заявки
+    assert "direct:api" in captured["scope"]
+
+
+def test_login_falls_back_without_direct_when_not_approved(monkeypatch, capsys):
+    # у приложения нет direct:api (заявка в Директе не одобрена) — вход не должен
+    # проваливаться целиком, Метрика и Вебмастер обязаны заработать сразу
+    attempts = []
+
+    def fake_login(name, scope, manual=False, no_browser=False):
+        attempts.append(scope)
+        if len(attempts) == 1:
+            raise cli.flow.ScopeRejected("Не удалось определить список запрашиваемых доступов")
+
+    monkeypatch.setattr(cli.flow, "login", fake_login)
+    cli.main(["login"])
+
+    assert len(attempts) == 2
+    assert "direct:api" in attempts[0]
+    assert "direct:api" not in attempts[1]
+    assert "metrika:read" in attempts[1]
+    assert "Директ" in capsys.readouterr().err
+
+
+def test_login_does_not_silently_narrow_an_explicit_service(monkeypatch):
+    def fake_login(name, scope, manual=False, no_browser=False):
+        raise cli.flow.ScopeRejected("нет прав")
+
+    monkeypatch.setattr(cli.flow, "login", fake_login)
+    with pytest.raises(SystemExit):
+        cli.main(["login", "--service", "direct"])
 
 
 def test_login_single_service_gets_its_own_token(monkeypatch):

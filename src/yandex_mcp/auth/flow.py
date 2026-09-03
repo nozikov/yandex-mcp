@@ -43,7 +43,15 @@ SERVICE_SCOPES = {
     "webmaster": "webmaster:hosts:read-write",
     "direct": "direct:api",
 }
-DEFAULT_SERVICES = ("metrika", "webmaster")
+DEFAULT_SERVICES = ("metrika", "webmaster", "direct")
+
+
+class ScopeRejected(RuntimeError):
+    """Яндекс не дал запрошенные права — обычно у приложения их просто нет.
+
+    Самый частый случай: `direct:api` без одобренной заявки в кабинете Директа.
+    Вызывающий может повторить вход с меньшим набором прав.
+    """
 
 
 def fingerprint(value):
@@ -155,9 +163,14 @@ def login(name, scope, manual=False, no_browser=False):
             sys.exit("код не введён")
     else:
         print(f"Жду подтверждения на {LOCAL_REDIRECT_URI} …")
+        CallbackHandler.reset()
         server = http.server.HTTPServer(("127.0.0.1", REDIRECT_PORT), CallbackHandler)
         server.timeout = 180
         server.handle_request()
+        if CallbackHandler.error:
+            # приложению не выдано запрошенное право — вызывающий может
+            # повторить вход с меньшим набором
+            raise ScopeRejected(CallbackHandler.error_description or CallbackHandler.error)
         if not CallbackHandler.code:
             sys.exit("код авторизации не получен")
         if CallbackHandler.state != state:

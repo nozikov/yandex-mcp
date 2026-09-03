@@ -67,7 +67,26 @@ def command_login(args):
 
     # один сервис — отдельный токен (least privilege), несколько — общий токен
     name = tokens.entry(services[0]) if len(services) == 1 else tokens.entry()
-    flow.login(name, _scope_for(services), manual=args.manual, no_browser=args.no_browser)
+    try:
+        flow.login(name, _scope_for(services), manual=args.manual, no_browser=args.no_browser)
+        return
+    except flow.ScopeRejected as error:
+        reason = str(error)
+
+    fallback = [service for service in services if service != "direct"]
+    if args.service or not fallback or "direct" not in services:
+        # набор запросил пользователь либо урезать больше нечего —
+        # молча сужать права нельзя
+        sys.exit(f"Яндекс не дал запрошенные права: {reason}\n"
+                 "Проверь, какие доступы включены у приложения на "
+                 "https://oauth.yandex.ru/")
+
+    # у приложения нет direct:api — почти всегда это неодобренная заявка в Директе
+    print(f"\nЯндекс не дал права на Директ: {reason}", file=sys.stderr)
+    print("Вхожу без Директа. Метрика и Вебмастер заработают сразу; когда заявку "
+          "на API Директа одобрят, повтори `yandex-mcp login` — доступ "
+          "подхватится сам.\n", file=sys.stderr)
+    flow.login(name, _scope_for(fallback), manual=args.manual, no_browser=args.no_browser)
 
 
 def _token_names():
