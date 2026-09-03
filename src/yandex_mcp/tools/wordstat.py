@@ -17,7 +17,7 @@ LIVE_V4 = "https://api.direct.yandex.ru/live/v4/json/"
 
 
 def tool_wordstat_phrases(arguments):
-    token = service_token("yandex-direct")
+    token = service_token("direct")
     phrases = arguments.get("phrases")
     if isinstance(phrases, str):
         phrases = [phrases]

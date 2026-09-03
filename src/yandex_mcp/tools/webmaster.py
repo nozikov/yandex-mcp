@@ -26,7 +26,7 @@ def _host_matches(url, host):
 
 
 def tool_webmaster_summary(arguments):
-    token = service_token("yandex-webmaster")
+    token = service_token("webmaster")
     user_id, hosts = _webmaster_host(token)
     lines = []
     for host in hosts:
@@ -48,7 +48,7 @@ def tool_webmaster_summary(arguments):
 
 
 def tool_webmaster_queries(arguments):
-    token = service_token("yandex-webmaster")
+    token = service_token("webmaster")
     user_id, hosts = _webmaster_host(token)
     limit = min(int(arguments.get("limit", 25)), 100)
     lines = []
@@ -71,7 +71,7 @@ def tool_webmaster_queries(arguments):
 
 
 def tool_webmaster_indexing(arguments):
-    token = service_token("yandex-webmaster")
+    token = service_token("webmaster")
     user_id, hosts = _webmaster_host(token)
     params = {}
     if arguments.get("date_from"):
@@ -96,7 +96,7 @@ def tool_webmaster_indexing(arguments):
 
 
 def tool_webmaster_sitemaps(arguments):
-    token = service_token("yandex-webmaster")
+    token = service_token("webmaster")
     user_id, hosts = _webmaster_host(token)
     limit = min(int(arguments.get("limit", 50)), 100)
 
@@ -123,7 +123,7 @@ def tool_webmaster_recrawl(arguments):
         raise RuntimeError("нужен хотя бы один URL")
     if len(urls) > 20:
         raise RuntimeError("за раз не больше 20 URL — квота Вебмастера 150 в сутки на весь сайт")
-    token = service_token("yandex-webmaster")
+    token = service_token("webmaster")
     user_id, hosts = _webmaster_host(token)
     lines = []
     for url in urls:

@@ -1,21 +1,36 @@
-"""Получение OAuth-токена сервиса из хранилища секретов."""
+"""Имена записей в хранилище и получение токена сервиса.
+
+Всё, чем владеет инструмент, лежит под префиксом `yandex-mcp-`: в macOS
+Keychain имена глобальные, так что префикс — это и пространство имён, и
+гарантия, что `logout` не заденет чужие записи.
+
+    yandex-mcp-token            общий токен единого входа
+    yandex-mcp-metrika-token    узкий токен одного сервиса
+    yandex-mcp-<имя>-refresh    refresh-токен
+    yandex-mcp-<имя>-expires    срок истечения
+    yandex-mcp-client-id        ID приложения Яндекса
+"""
 
 from .store import backend, get_secret
 
-# токен, выданный единым входом `yandex-mcp login` — общий для всех сервисов
-UNIFIED_NAME = "yandex"
-UNIFIED_TOKEN = f"{UNIFIED_NAME}-token"
+PREFIX = "yandex-mcp"
+SERVICES = ("metrika", "webmaster", "direct")
+
+
+def entry(service=None):
+    """Базовое имя записи: `yandex-mcp` или `yandex-mcp-<сервис>`."""
+    return f"{PREFIX}-{service}" if service else PREFIX
 
 
 def service_token(service):
-    """Токен для сервиса (`yandex-metrika`, `yandex-webmaster`, `yandex-direct`).
+    """Токен для сервиса (`metrika`, `webmaster`, `direct`).
 
-    Сначала ищется отдельный токен сервиса — он выдаётся `login --service <имя>`
-    и нужен тем, кому важен least privilege. Если его нет, берётся общий токен
+    Сначала ищется узкий токен сервиса — его выдаёт `login --service <имя>`
+    тем, кому важен least privilege. Если его нет, берётся общий токен
     единого входа.
     """
-    for candidate in (f"{service}-token", UNIFIED_TOKEN):
-        value = get_secret(candidate)
+    for name in (f"{entry(service)}-token", f"{entry()}-token"):
+        value = get_secret(name)
         if value:
             return value
     raise RuntimeError(

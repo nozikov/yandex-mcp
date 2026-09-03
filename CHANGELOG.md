@@ -26,6 +26,12 @@
 ### Изменено
 - **Ломающее:** пакет `yandex_oauth` переехал в `yandex_mcp.auth`, отдельная
   команда `yandex-oauth` убрана — всё делается через `yandex-mcp`.
+- **Ломающее:** записи в хранилище переименованы под единый префикс
+  `yandex-mcp-` (`yandex-mcp-token`, `yandex-mcp-metrika-token`,
+  `yandex-mcp-client-id`) вместо прежнего разнобоя `yandex-token` /
+  `yandex-metrika-token` / `yandex-oauth-client-id`. Миграции нет: выполните
+  `yandex-mcp setup` и `yandex-mcp login` — с новым входом это полминуты.
+  Старые записи остаются в хранилище нетронутыми, их можно удалить вручную.
 - `client_secret` больше не обязателен — используется PKCE. Если секрет лежит
   в хранилище (агентские приложения, старые установки), он всё ещё применяется.
 - `client_id` берётся из `YANDEX_MCP_CLIENT_ID` или из хранилища.

@@ -21,14 +21,15 @@ import webbrowser
 
 from .callback import CallbackHandler
 from .store import backend, get_secret, set_secret
+# именно константа, а не модуль: внутри функций `tokens` — это словарь ответа OAuth,
+# и импорт модуля под тем же именем был бы затенён
+from .tokens import PREFIX
 
-# имена записей в хранилище, а не команд: по ним уже лежат выданные секреты
-# у тех, кто ставил ранние версии, поэтому переименовывать нельзя
-CLIENT_ID_ITEM = "yandex-oauth-client-id"
-CLIENT_SECRET_ITEM = "yandex-oauth-client-secret"
+CLIENT_ID_ITEM = f"{PREFIX}-client-id"
+CLIENT_SECRET_ITEM = f"{PREFIX}-client-secret"
 CLIENT_ID_ENV = "YANDEX_MCP_CLIENT_ID"
 
-PENDING_FILE = os.path.join(os.path.expanduser("~"), ".cache", "yandex-oauth-pending.json")
+PENDING_FILE = os.path.join(os.path.expanduser("~"), ".cache", "yandex-mcp-pending.json")
 REDIRECT_PORT = 8765
 LOCAL_REDIRECT_URI = f"http://localhost:{REDIRECT_PORT}/callback"
 MANUAL_REDIRECT_URI = "https://oauth.yandex.ru/verification_code"

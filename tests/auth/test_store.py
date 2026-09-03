@@ -14,18 +14,18 @@ def _isolated(file_store):
 
 
 def test_env_name_mapping():
-    assert store.env_name("yandex-metrika-token") == "YANDEX_MCP_SECRET_YANDEX_METRIKA_TOKEN"
+    assert store.env_name("yandex-mcp-metrika-token") == "YANDEX_MCP_SECRET_METRIKA_TOKEN"
 
 
 def test_file_backend_roundtrip():
-    store.set_secret("yandex-token", "abc123")
-    assert store.get_secret("yandex-token") == "abc123"
+    store.set_secret("yandex-mcp-token", "abc123")
+    assert store.get_secret("yandex-mcp-token") == "abc123"
 
 
 def test_file_backend_delete():
-    store.set_secret("yandex-token", "abc123")
-    store.delete_secret("yandex-token")
-    assert store.get_secret("yandex-token") is None
+    store.set_secret("yandex-mcp-token", "abc123")
+    store.delete_secret("yandex-mcp-token")
+    assert store.get_secret("yandex-mcp-token") is None
 
 
 def test_missing_secret_returns_none():
@@ -33,14 +33,14 @@ def test_missing_secret_returns_none():
 
 
 def test_env_var_wins_over_stored_value(monkeypatch):
-    store.set_secret("yandex-token", "из-файла")
-    monkeypatch.setenv(store.env_name("yandex-token"), "из-окружения")
-    assert store.get_secret("yandex-token") == "из-окружения"
+    store.set_secret("yandex-mcp-token", "из-файла")
+    monkeypatch.setenv(store.env_name("yandex-mcp-token"), "из-окружения")
+    assert store.get_secret("yandex-mcp-token") == "из-окружения"
 
 
 @pytest.mark.skipif(os.name == "nt", reason="права POSIX неприменимы к Windows")
 def test_file_written_with_owner_only_permissions():
-    store.set_secret("yandex-token", "abc123")
+    store.set_secret("yandex-mcp-token", "abc123")
     mode = os.stat(store.backend().path).st_mode
     assert stat.S_IMODE(mode) == 0o600
     assert not mode & stat.S_IRGRP
@@ -53,14 +53,14 @@ def test_corrupted_file_raises_readable_error():
     with open(path, "w", encoding="utf-8") as handle:
         handle.write("{это не json")
     with pytest.raises(RuntimeError, match="повреждён"):
-        store.get_secret("yandex-token")
+        store.get_secret("yandex-mcp-token")
 
 
 def test_unknown_forced_backend_raises(monkeypatch):
     monkeypatch.setenv(store.KEYSTORE_ENV, "нет-такого-бэкенда")
     store.reset_backend()
     with pytest.raises(RuntimeError, match="неизвестное значение"):
-        store.get_secret("yandex-token")
+        store.get_secret("yandex-mcp-token")
 
 
 def test_autodetect_prefers_keychain_on_macos(monkeypatch):

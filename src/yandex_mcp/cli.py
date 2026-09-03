@@ -11,9 +11,8 @@ import sys
 import webbrowser
 
 from . import server
-from .auth import flow
+from .auth import flow, tokens
 from .auth.store import backend, delete_secret, get_secret, set_secret
-from .auth.tokens import UNIFIED_NAME
 
 REGISTER_URL = "https://oauth.yandex.ru/client/new"
 
@@ -67,12 +66,12 @@ def command_login(args):
                  f"доступны: {', '.join(flow.SERVICE_SCOPES)}")
 
     # один сервис — отдельный токен (least privilege), несколько — общий токен
-    name = f"yandex-{services[0]}" if len(services) == 1 else UNIFIED_NAME
+    name = tokens.entry(services[0]) if len(services) == 1 else tokens.entry()
     flow.login(name, _scope_for(services), manual=args.manual, no_browser=args.no_browser)
 
 
 def _token_names():
-    return [UNIFIED_NAME] + [f"yandex-{service}" for service in flow.SERVICE_SCOPES]
+    return [tokens.entry()] + [tokens.entry(service) for service in tokens.SERVICES]
 
 
 def command_status(args):
@@ -89,7 +88,7 @@ def command_status(args):
         found = True
         days = info["days_left"]
         expiry = f"осталось дней: {days}" if days is not None else "срок неизвестен"
-        label = "общий токен" if name == UNIFIED_NAME else name
+        label = "общий токен" if name == tokens.entry() else name
         print(f"{label}: {info['fingerprint']}, {expiry}")
     if not found:
         print("токенов нет — выполни `yandex-mcp login`")

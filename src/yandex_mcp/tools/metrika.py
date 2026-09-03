@@ -24,7 +24,7 @@ def _resolve_counter(arguments):
 
 
 def tool_metrika_summary(arguments):
-    token = service_token("yandex-metrika")
+    token = service_token("metrika")
     counter = _resolve_counter(arguments)
     date1 = arguments.get("date1", "30daysAgo")
     date2 = arguments.get("date2", "yesterday")
@@ -65,7 +65,7 @@ def tool_metrika_summary(arguments):
 
 
 def tool_metrika_report(arguments):
-    token = service_token("yandex-metrika")
+    token = service_token("metrika")
     params = {
         "ids": _resolve_counter(arguments),
         "metrics": arguments["metrics"],
@@ -121,7 +121,7 @@ def _default_previous_period(date1, date2):
 
 
 def tool_metrika_compare(arguments):
-    token = service_token("yandex-metrika")
+    token = service_token("metrika")
     counter = _resolve_counter(arguments)
     metrics = arguments["metrics"]
     metric_names = metrics.split(",")
@@ -175,7 +175,7 @@ def tool_metrika_compare(arguments):
 
 
 def tool_metrika_counters(arguments):
-    token = service_token("yandex-metrika")
+    token = service_token("metrika")
     result = http_get(f"{MANAGEMENT}/counters", token)
     lines = []
     for counter in result.get("counters", []):

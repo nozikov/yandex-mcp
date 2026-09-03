@@ -24,8 +24,13 @@ SERVICE = "yandex-mcp"
 
 
 def env_name(name):
-    """`yandex-metrika-token` → `YANDEX_MCP_SECRET_YANDEX_METRIKA_TOKEN`."""
-    return ENV_PREFIX + name.replace("-", "_").upper()
+    """`yandex-mcp-metrika-token` → `YANDEX_MCP_SECRET_METRIKA_TOKEN`.
+
+    Префикс записи совпадает с префиксом переменной, поэтому срезается —
+    иначе выходило бы YANDEX_MCP_SECRET_YANDEX_MCP_METRIKA_TOKEN.
+    """
+    short = name[len(SERVICE) + 1:] if name.startswith(f"{SERVICE}-") else name
+    return ENV_PREFIX + short.replace("-", "_").upper()
 
 
 def config_dir():

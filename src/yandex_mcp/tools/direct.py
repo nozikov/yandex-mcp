@@ -25,7 +25,7 @@ DEFAULT_REPORT_FIELDS = ["CampaignId", "CampaignName", "Impressions", "Clicks", 
 
 
 def tool_direct_campaigns(arguments):
-    token = service_token("yandex-direct")
+    token = service_token("direct")
     response_headers = {}
     result = http_post_json(f"{DIRECT}/campaigns", token, headers_out=response_headers, payload={
         "method": "get",
@@ -116,7 +116,7 @@ def _format_report(body, field_names):
 
 
 def tool_direct_report(arguments):
-    token = service_token("yandex-direct")
+    token = service_token("direct")
     payload, field_names = _build_report_payload(arguments)
     body_bytes = json.dumps({"params": payload}, ensure_ascii=False).encode()
     headers = {

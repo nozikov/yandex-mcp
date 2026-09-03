@@ -76,9 +76,19 @@ yandex-mcp logout               # удалить токены из хранил�
 | Windows, headless-сервер, Docker | файл `secrets.json` с правами 0600 в конфиг-директории |
 
 Принудительно — переменной `YANDEX_MCP_KEYSTORE=keychain|secret-tool|file`.
-Любой отдельный секрет можно прокинуть через окружение, минуя хранилище: имя записи
-переводится в верхний регистр с префиксом, например `yandex-token` →
-`YANDEX_MCP_SECRET_YANDEX_TOKEN`. Это основной способ для Docker и CI.
+
+Все записи лежат под префиксом `yandex-mcp-`, чтобы в глобальном пространстве имён
+Keychain ничего не пересекалось и `logout` не задел чужое:
+
+```
+yandex-mcp-token             общий токен единого входа
+yandex-mcp-metrika-token     узкий токен одного сервиса
+yandex-mcp-client-id         ID приложения Яндекса
+```
+
+Любой секрет можно прокинуть через окружение, минуя хранилище: `yandex-mcp-metrika-token`
+→ `YANDEX_MCP_SECRET_METRIKA_TOKEN`, общий токен → `YANDEX_MCP_SECRET_TOKEN`. Это основной
+способ для Docker и CI.
 
 `yandex-mcp status` всегда показывает, какое хранилище используется сейчас.
 
