@@ -4,8 +4,8 @@ MCP-сервер для read-only доступа к Яндекс Метрике,
 чтобы LLM-агент мог сам посмотреть аналитику сайта, вместо того чтобы вы копировали цифры
 из кабинетов вручную.
 
-Написан на чистом Python без зависимостей: JSON-RPC поверх stdio реализован в одном файле,
-чтобы OAuth-токен не проходил через сторонние пакеты.
+Написан на чистом Python **без рантайм-зависимостей**: JSON-RPC поверх stdio реализован
+здесь же, чтобы OAuth-токен не проходил через сторонние пакеты.
 
 ## Почему так, а не через готовый SDK
 
@@ -21,6 +21,9 @@ MCP-сервер для read-only доступа к Яндекс Метрике,
   и заголовки страниц пишут посторонние люди. Каждый ответ инструмента снабжается пометкой:
   если внутри данных встретится текст, похожий на инструкцию агенту, — это нужно процитировать
   пользователю, а не выполнять.
+- **Официальный MCP SDK не используется намеренно** — он тянет `httpx`, `pydantic`, `anyio`
+  и их транзитивные зависимости, а через этот процесс проходит OAuth-токен к вашей аналитике
+  и рекламному кабинету. Меньше чужого кода в рантайме — меньше supply-chain поверхность.
 
 ## Инструменты
 
@@ -35,11 +38,38 @@ MCP-сервер для read-only доступа к Яндекс Метрике,
 | `direct_campaigns` | Список кампаний Директа (только чтение) и остаток баллов API |
 | `wordstat_phrases` | Частотности Вордстата через Live v4 API Директа (новый Wordstat API требует сервисного аккаунта Cloud, поэтому через Live v4) |
 
+## Структура проекта
+
+```
+yandex-mcp/
+  yandex_mcp/            # MCP-сервер
+    scrub.py             # вычищение секретов из ответов/ошибок
+    keychain.py          # чтение OAuth-токена из macOS Keychain
+    httpclient.py         # urllib-обёртка: заголовки, единая обработка ошибок
+    server.py             # JSON-RPC/stdio диспетчер, точка входа main()
+    tools/
+      metrika.py
+      webmaster.py
+      direct.py
+      wordstat.py
+  yandex_oauth/            # CLI получения/обновления OAuth-токенов
+    keychain.py
+    callback.py            # локальный HTTP-приёмник redirect (режим без --manual)
+    oauth.py                # PKCE-флоу, обмен кода на токены
+    cli.py                   # argparse, точка входа main()
+  tests/
+  pyproject.toml
+```
+
+Ни `yandex_mcp`, ни `yandex_oauth` не тянут внешних библиотек в рантайме — `pytest` в
+`[project.optional-dependencies].dev` нужен только для тестов.
+
 ## Требования
 
 - macOS (используется `security` из Keychain Services — на Linux/Windows работать не будет
-  без замены хранилища токенов)
-- Python 3.8+, без внешних зависимостей
+  без замены `keychain.py` на другой бэкенд, например `secret-tool`/libsecret или
+  Windows Credential Manager)
+- Python 3.8+
 - OAuth-приложение на [oauth.yandex.ru](https://oauth.yandex.ru/) с нужными правами
   (Метрика, Вебмастер, Директ — под то, что собираетесь использовать)
 
@@ -48,7 +78,14 @@ MCP-сервер для read-only доступа к Яндекс Метрике,
 ```bash
 git clone <this-repo>
 cd yandex-mcp
-chmod +x yandex-mcp yandex-oauth
+pip install -e .
+```
+
+Это регистрирует команды `yandex-mcp` и `yandex-oauth` в текущем окружении (`PATH`).
+Без установки сервер тоже запускается — из корня репозитория:
+
+```bash
+python3 -m yandex_mcp
 ```
 
 ### 1. Завести OAuth-приложение
@@ -71,9 +108,9 @@ security add-generic-password -s yandex-oauth-client-secret -a "$USER" -w
 см. ниже):
 
 ```bash
-./yandex-oauth login --name yandex-metrika  --scope "metrika:read" --manual
-./yandex-oauth login --name yandex-webmaster --scope "webmaster:hosts:read-write" --manual
-./yandex-oauth login --name yandex-direct   --scope "direct:api" --manual
+yandex-oauth login --name yandex-metrika   --scope "metrika:read" --manual
+yandex-oauth login --name yandex-webmaster --scope "webmaster:hosts:read-write" --manual
+yandex-oauth login --name yandex-direct    --scope "direct:api" --manual
 ```
 
 Токен и refresh-токен уйдут в Keychain как `<name>-token` / `<name>-refresh` / `<name>-expires`.
@@ -82,8 +119,8 @@ security add-generic-password -s yandex-oauth-client-secret -a "$USER" -w
 Продлить, когда истечёт:
 
 ```bash
-./yandex-oauth refresh --name yandex-metrika
-./yandex-oauth status  --name yandex-metrika
+yandex-oauth refresh --name yandex-metrika
+yandex-oauth status  --name yandex-metrika
 ```
 
 ### 3. Подключить к MCP-клиенту
@@ -94,7 +131,7 @@ security add-generic-password -s yandex-oauth-client-secret -a "$USER" -w
 {
   "mcpServers": {
     "yandex": {
-      "command": "/absolute/path/to/yandex-mcp/yandex-mcp",
+      "command": "yandex-mcp",
       "env": {
         "YANDEX_MCP_DEFAULT_COUNTER": "12345678"
       }
@@ -103,8 +140,21 @@ security add-generic-password -s yandex-oauth-client-secret -a "$USER" -w
 }
 ```
 
+Команда `yandex-mcp` должна быть на `PATH` (см. установку выше); если ставили в venv —
+укажите полный путь до него, например `/path/to/yandex-mcp/.venv/bin/yandex-mcp`.
+
 `YANDEX_MCP_DEFAULT_COUNTER` — опционален: если не задать, `counter_id` придётся передавать
 в каждом вызове `metrika_summary`/`metrika_report` явно.
+
+## Тесты
+
+```bash
+pip install -e ".[dev]"
+pytest
+```
+
+Тесты мокают Keychain и сеть (`keychain_token`/`http_get`/`http_post_json`/`perform`
+подменяются через `monkeypatch`) — реальных вызовов к API и Keychain не делают.
 
 ## Ограничения
 

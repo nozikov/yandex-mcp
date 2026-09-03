@@ -1,79 +1,27 @@
-#!/usr/bin/env python3
-"""
-Получение и обновление OAuth-токенов Яндекса.
+"""Логика OAuth-флоу: PKCE-обмен кода на токены, сохранение в Keychain."""
 
-Инвариант: значения секретов никогда не печатаются в stdout/stderr —
-только отпечаток sha256:xxxxxxxx (как в SecretScrubber бэкенда).
-Всё хранится в Keychain, на диске в открытом виде ничего не остаётся.
-
-Подготовка (один раз, значения вводятся интерактивно):
-    security add-generic-password -s yandex-oauth-client-id     -a "$USER" -w
-    security add-generic-password -s yandex-oauth-client-secret -a "$USER" -w
-
-Использование:
-    ./yandex-oauth.py login  --name yandex-metrika --scope "metrika:read" --manual
-    ./yandex-oauth.py login  --name yandex-direct-ro --scope "direct:api" --manual
-    ./yandex-oauth.py refresh --name yandex-metrika
-    ./yandex-oauth.py status  --name yandex-metrika
-
---manual — для приложений, у которых Redirect URI оставлен дефолтным
-(https://oauth.yandex.ru/verification_code): код подтверждения показывается
-на странице и вводится в терминал. Без флага код ловится на localhost:8765,
-но этот адрес должен быть заранее прописан в настройках приложения.
-"""
-
-import argparse
 import base64
 import hashlib
 import http.server
 import json
 import os
 import secrets
-import subprocess
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import webbrowser
 
-CLIENT_ID_ITEM = "yandex-oauth-client-id"
-CLIENT_SECRET_ITEM = "yandex-oauth-client-secret"
+from .callback import CallbackHandler
+from .keychain import CLIENT_ID_ITEM, CLIENT_SECRET_ITEM, fingerprint, keychain_get, keychain_set
+
 PENDING_FILE = os.path.expanduser("~/.cache/yandex-oauth-pending.json")
 REDIRECT_PORT = 8765
 LOCAL_REDIRECT_URI = f"http://localhost:{REDIRECT_PORT}/callback"
 MANUAL_REDIRECT_URI = "https://oauth.yandex.ru/verification_code"
 AUTHORIZE_URL = "https://oauth.yandex.ru/authorize"
 TOKEN_URL = "https://oauth.yandex.ru/token"
-
-
-def fingerprint(value):
-    if not value:
-        return "sha256:none"
-    return "sha256:" + hashlib.sha256(value.encode()).hexdigest()[:8]
-
-
-def keychain_get(item, required=True):
-    result = subprocess.run(
-        ["security", "find-generic-password", "-s", item, "-w"],
-        capture_output=True, text=True,
-    )
-    if result.returncode != 0:
-        if required:
-            sys.exit(f"нет записи в Keychain: {item}")
-        return None
-    return result.stdout.strip()
-
-
-def keychain_set(item, value):
-    subprocess.run(["security", "delete-generic-password", "-s", item],
-                   capture_output=True)
-    result = subprocess.run(
-        ["security", "add-generic-password", "-s", item,
-         "-a", os.environ.get("USER", "-"), "-w", value, "-U"],
-        capture_output=True, text=True,
-    )
-    if result.returncode != 0:
-        sys.exit(f"не удалось записать в Keychain: {item}")
 
 
 def post_token(params, allow_retry_without_redirect=False):
@@ -107,25 +55,6 @@ def save_tokens(name, tokens):
     print(f"refresh_token {fingerprint(tokens.get('refresh_token'))}")
     print(f"истекает      {time.strftime('%Y-%m-%d', time.localtime(expires_at))}")
     print(f"\nKeychain: {name}-token, {name}-refresh, {name}-expires")
-
-
-class CallbackHandler(http.server.BaseHTTPRequestHandler):
-    code = None
-    state = None
-
-    def do_GET(self):
-        query = urllib.parse.urlparse(self.path).query
-        params = urllib.parse.parse_qs(query)
-        CallbackHandler.code = params.get("code", [None])[0]
-        CallbackHandler.state = params.get("state", [None])[0]
-        self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.end_headers()
-        message = "Готово, вернись в терминал." if CallbackHandler.code else "Код не получен."
-        self.wfile.write(f"<html><body><h3>{message}</h3></body></html>".encode())
-
-    def log_message(self, *args):
-        pass  # URL с кодом не должен попасть в вывод
 
 
 def login(name, scope, manual, no_browser=False):
@@ -226,37 +155,3 @@ def status(name):
     expires_at = int(keychain_get(f"{name}-expires", required=False) or 0)
     days_left = (expires_at - int(time.time())) // 86400
     print(f"{name}: {fingerprint(token)}, осталось дней: {days_left}")
-
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    subparsers = parser.add_subparsers(dest="command", required=True)
-
-    login_parser = subparsers.add_parser("login")
-    login_parser.add_argument("--name", required=True, help="префикс записей в Keychain")
-    login_parser.add_argument("--scope", required=True, help="через пробел, напр. 'metrika:read'")
-    login_parser.add_argument("--manual", action="store_true",
-                              help="redirect на страницу verification_code, код вводится руками")
-    login_parser.add_argument("--no-browser", action="store_true",
-                              help="не открывать браузер, напечатать ссылку авторизации")
-
-    exchange_parser = subparsers.add_parser("exchange")
-    exchange_parser.add_argument("--code", required=True, help="код подтверждения со страницы")
-
-    for command in ("refresh", "status"):
-        sub = subparsers.add_parser(command)
-        sub.add_argument("--name", required=True)
-
-    args = parser.parse_args()
-    if args.command == "login":
-        login(args.name, args.scope, args.manual, args.no_browser)
-    elif args.command == "exchange":
-        exchange(args.code)
-    elif args.command == "refresh":
-        refresh(args.name)
-    else:
-        status(args.name)
-
-
-if __name__ == "__main__":
-    main()
