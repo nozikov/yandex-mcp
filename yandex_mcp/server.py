@@ -49,7 +49,21 @@ def handle(request):
     raise RuntimeError(f"метод не поддерживается: {method}")
 
 
+def use_utf8_stdio():
+    """Перевести stdin/stdout в UTF-8.
+
+    На Windows потоки по умолчанию в кодировке локали (cp1252/cp866), а весь
+    протокол и данные — UTF-8 с кириллицей: без этого первый же ответ падает
+    UnicodeEncodeError. На macOS/Linux вызов безвреден — там UTF-8 и так.
+    """
+    for stream in (sys.stdin, sys.stdout):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:      # у подменённых в тестах потоков его нет
+            reconfigure(encoding="utf-8")
+
+
 def main():
+    use_utf8_stdio()
     for raw in sys.stdin:
         raw = raw.strip()
         if not raw:

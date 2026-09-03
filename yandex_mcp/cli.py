@@ -140,6 +140,8 @@ def main(argv=None):
     if not argv:
         server.main()      # MCP-режим: stdout занят протоколом
         return
+    # вывод команд тоже кириллический — на Windows консоль по умолчанию не в UTF-8
+    server.use_utf8_stdio()
     args = build_parser().parse_args(argv)
     args.handler(args)
 

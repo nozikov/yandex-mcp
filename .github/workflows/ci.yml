@@ -29,7 +29,7 @@ jobs:
         shell: bash
         run: |
           echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | yandex-mcp > out.json
-          python -c "import json;d=json.load(open('out.json'));assert len(d['result']['tools'])==12, d"
+          python -c "import json;d=json.load(open('out.json', encoding='utf-8'));assert len(d['result']['tools'])==12, d"
       - name: smoke test CLI
         shell: bash
         env:

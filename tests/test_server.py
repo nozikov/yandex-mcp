@@ -31,6 +31,30 @@ def test_unknown_method_raises():
         server.handle({"method": "not-a-method"})
 
 
+def test_use_utf8_stdio_reconfigures_streams(monkeypatch):
+    # регрессия: на Windows stdio в кодировке локали (cp1252), а ответы —
+    # UTF-8 с кириллицей, и сервер падал UnicodeEncodeError на первом же ответе
+    class FakeStream:
+        def __init__(self):
+            self.encoding = None
+
+        def reconfigure(self, encoding=None):
+            self.encoding = encoding
+
+    stdin, stdout = FakeStream(), FakeStream()
+    monkeypatch.setattr(server.sys, "stdin", stdin)
+    monkeypatch.setattr(server.sys, "stdout", stdout)
+    server.use_utf8_stdio()
+    assert stdin.encoding == "utf-8"
+    assert stdout.encoding == "utf-8"
+
+
+def test_use_utf8_stdio_tolerates_streams_without_reconfigure(monkeypatch):
+    monkeypatch.setattr(server.sys, "stdin", object())
+    monkeypatch.setattr(server.sys, "stdout", object())
+    server.use_utf8_stdio()  # не должно падать — потоки бывают подменены
+
+
 def test_ping_returns_empty_result():
     assert server.handle({"method": "ping"}) == {}
 
