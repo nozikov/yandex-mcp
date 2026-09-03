@@ -88,13 +88,13 @@ security add-generic-password -s yandex-oauth-client-secret -a "$USER" -w
 
 ### 3. Подключить к MCP-клиенту
 
-Пример для Claude Code (`.mcp.json` или `claude mcp add`):
+Пример для Claude Code (`.mcp.json` или `claude mcp add`) — см. [`.mcp.json.example`](./.mcp.json.example):
 
 ```json
 {
   "mcpServers": {
     "yandex": {
-      "command": "/absolute/path/to/yandex-mcp",
+      "command": "/absolute/path/to/yandex-mcp/yandex-mcp",
       "env": {
         "YANDEX_MCP_DEFAULT_COUNTER": "12345678"
       }

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "yandex": {
+      "command": "/absolute/path/to/yandex-mcp/yandex-mcp",
+      "env": {
+        "YANDEX_MCP_DEFAULT_COUNTER": "12345678"
+      }
+    }
+  }
+}
