@@ -2,7 +2,7 @@ from yandex_mcp.tools import direct
 
 
 def test_direct_campaigns_reports_units(monkeypatch):
-    monkeypatch.setattr(direct, "keychain_token", lambda name: "fake-token")
+    monkeypatch.setattr(direct, "service_token", lambda name: "fake-token")
 
     def fake_http_post_json(url, token, payload, bearer=True, headers_out=None):
         if headers_out is not None:
@@ -18,7 +18,7 @@ def test_direct_campaigns_reports_units(monkeypatch):
 
 
 def test_direct_campaigns_surfaces_api_error(monkeypatch):
-    monkeypatch.setattr(direct, "keychain_token", lambda name: "fake-token")
+    monkeypatch.setattr(direct, "service_token", lambda name: "fake-token")
 
     def fake_http_post_json(url, token, payload, bearer=True, headers_out=None):
         return {"error": {"error_code": 58, "error_string": "no access",
@@ -63,7 +63,7 @@ def test_format_report_empty_body():
 
 def test_report_polls_until_ready(monkeypatch):
     # Reports API отвечает 201/202, пока отчёт не готов, тул должен сам поллить
-    monkeypatch.setattr(direct, "keychain_token", lambda name: "fake-token")
+    monkeypatch.setattr(direct, "service_token", lambda name: "fake-token")
     monkeypatch.setattr(direct.time, "sleep", lambda seconds: None)
 
     calls = {"n": 0}
@@ -81,7 +81,7 @@ def test_report_polls_until_ready(monkeypatch):
 
 
 def test_report_raises_on_unexpected_status(monkeypatch):
-    monkeypatch.setattr(direct, "keychain_token", lambda name: "fake-token")
+    monkeypatch.setattr(direct, "service_token", lambda name: "fake-token")
     monkeypatch.setattr(direct, "_do_report_request", lambda request: (500, "", None))
 
     import pytest

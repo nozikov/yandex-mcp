@@ -11,13 +11,13 @@ import time
 import urllib.request
 
 from ..httpclient import perform
-from ..keychain import keychain_token
+from ..tokens import service_token
 
 LIVE_V4 = "https://api.direct.yandex.ru/live/v4/json/"
 
 
 def tool_wordstat_phrases(arguments):
-    token = keychain_token("yandex-direct")
+    token = service_token("yandex-direct")
     phrases = arguments.get("phrases")
     if isinstance(phrases, str):
         phrases = [phrases]

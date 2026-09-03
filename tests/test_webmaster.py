@@ -37,7 +37,7 @@ def _fake_host_lookup(url):
 
 
 def test_indexing_reports_history_by_date(monkeypatch):
-    monkeypatch.setattr(webmaster, "keychain_token", lambda name: "fake-token")
+    monkeypatch.setattr(webmaster, "service_token", lambda name: "fake-token")
 
     def fake_http_get(url, token, params=None):
         found = _fake_host_lookup(url)
@@ -55,7 +55,7 @@ def test_indexing_reports_history_by_date(monkeypatch):
 
 
 def test_sitemaps_reports_list(monkeypatch):
-    monkeypatch.setattr(webmaster, "keychain_token", lambda name: "fake-token")
+    monkeypatch.setattr(webmaster, "service_token", lambda name: "fake-token")
 
     def fake_http_get(url, token, params=None):
         found = _fake_host_lookup(url)

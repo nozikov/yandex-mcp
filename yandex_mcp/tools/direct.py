@@ -15,7 +15,7 @@ import urllib.error
 import urllib.request
 
 from ..httpclient import http_post_json
-from ..keychain import keychain_token
+from ..tokens import service_token
 from ..scrub import scrub
 
 DIRECT = "https://api.direct.yandex.com/json/v5"
@@ -25,7 +25,7 @@ DEFAULT_REPORT_FIELDS = ["CampaignId", "CampaignName", "Impressions", "Clicks", 
 
 
 def tool_direct_campaigns(arguments):
-    token = keychain_token("yandex-direct")
+    token = service_token("yandex-direct")
     response_headers = {}
     result = http_post_json(f"{DIRECT}/campaigns", token, headers_out=response_headers, payload={
         "method": "get",
@@ -116,7 +116,7 @@ def _format_report(body, field_names):
 
 
 def tool_direct_report(arguments):
-    token = keychain_token("yandex-direct")
+    token = service_token("yandex-direct")
     payload, field_names = _build_report_payload(arguments)
     body_bytes = json.dumps({"params": payload}, ensure_ascii=False).encode()
     headers = {

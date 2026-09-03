@@ -4,26 +4,41 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "yandex-mcp"
-version = "1.1.0"
+version = "2.0.0"
 description = "Read-only MCP server for Yandex Metrika, Webmaster and Direct (incl. Wordstat)"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [{name = "Anton Nozikov"}]
+keywords = ["mcp", "model-context-protocol", "yandex", "metrika", "webmaster", "direct", "wordstat", "analytics"]
 dependencies = []
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+    "Topic :: Office/Business",
+]
 
 [project.urls]
 Homepage = "https://github.com/nozikov/yandex-mcp"
+Issues = "https://github.com/nozikov/yandex-mcp/issues"
 
 [project.scripts]
-yandex-mcp = "yandex_mcp.server:main"
-yandex-oauth = "yandex_oauth.cli:main"
+yandex-mcp = "yandex_mcp.cli:main"
+yandex-oauth = "yandex_mcp.oauth.cli:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=7"]
 
 [tool.setuptools.packages.find]
-include = ["yandex_mcp*", "yandex_oauth*"]
+include = ["yandex_mcp*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

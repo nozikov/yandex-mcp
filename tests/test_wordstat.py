@@ -8,7 +8,7 @@ from yandex_mcp.tools import wordstat
 def test_keeps_report_when_cleanup_fails(monkeypatch):
     # регрессия: раньше исключение из финального DeleteWordstatReport
     # выбрасывалось наружу и терялся уже готовый отчёт
-    monkeypatch.setattr(wordstat, "keychain_token", lambda name: "fake-token")
+    monkeypatch.setattr(wordstat, "service_token", lambda name: "fake-token")
     monkeypatch.setattr(wordstat.time, "sleep", lambda seconds: None)
 
     def fake_perform(request):
@@ -32,7 +32,7 @@ def test_keeps_report_when_cleanup_fails(monkeypatch):
 
 
 def test_requires_phrases(monkeypatch):
-    monkeypatch.setattr(wordstat, "keychain_token", lambda name: "fake-token")
+    monkeypatch.setattr(wordstat, "service_token", lambda name: "fake-token")
     with pytest.raises(RuntimeError):
         wordstat.tool_wordstat_phrases({})
 
@@ -40,7 +40,7 @@ def test_requires_phrases(monkeypatch):
 def test_keeps_report_when_cleanup_raises_non_json_response(monkeypatch):
     # регрессия: try/except вокруг DeleteWordstatReport ловил только RuntimeError,
     # а perform() на не-JSON теле ответа кидает json.JSONDecodeError (подкласс ValueError)
-    monkeypatch.setattr(wordstat, "keychain_token", lambda name: "fake-token")
+    monkeypatch.setattr(wordstat, "service_token", lambda name: "fake-token")
     monkeypatch.setattr(wordstat.time, "sleep", lambda seconds: None)
 
     def fake_perform(request):
@@ -64,7 +64,7 @@ def test_keeps_report_when_cleanup_raises_non_json_response(monkeypatch):
 
 def test_handles_row_without_shows(monkeypatch):
     # регрессия: f"{row.get('Shows'):>8}" падал TypeError, если у уточнения нет Shows
-    monkeypatch.setattr(wordstat, "keychain_token", lambda name: "fake-token")
+    monkeypatch.setattr(wordstat, "service_token", lambda name: "fake-token")
     monkeypatch.setattr(wordstat.time, "sleep", lambda seconds: None)
 
     def fake_perform(request):

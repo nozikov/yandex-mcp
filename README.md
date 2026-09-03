@@ -4,26 +4,83 @@ MCP-сервер для read-only доступа к Яндекс Метрике,
 чтобы LLM-агент мог сам посмотреть аналитику сайта, вместо того чтобы вы копировали цифры
 из кабинетов вручную.
 
-Написан на чистом Python **без рантайм-зависимостей**: JSON-RPC поверх stdio реализован
-здесь же, чтобы OAuth-токен не проходил через сторонние пакеты.
+Работает на macOS, Linux и Windows. Чистый Python **без рантайм-зависимостей**: JSON-RPC
+поверх stdio реализован здесь же, чтобы OAuth-токен не проходил через сторонние пакеты.
 
-## Почему так, а не через готовый SDK
+## Установка
 
-- **Токен нигде не хардкожен и не пишется на диск в открытом виде.** Он лежит в macOS
-  Keychain и достаётся в момент вызова через `security find-generic-password`. Ни в одном
-  ответе инструмента, ни в тексте ошибки значение токена не появляется — есть отдельный
-  `scrub()`, который вычищает Bearer/OAuth-заголовки и Яндекс-токены (`y0_...`, `y1_...`)
-  из любого текста перед тем, как он уйдёт наружу.
-- **Почти всё — чтение.** Единственный мутирующий вызов — `webmaster_recrawl` (постановка
-  URL в очередь на переобход), и он ограничен 20 URL за раз: у Вебмастера квота 150 в сутки
-  на весь сайт, тратить её молча нельзя.
-- **Данные из API считаются недоверенными.** Поисковые фразы, UTM-метки, названия кампаний
-  и заголовки страниц пишут посторонние люди. Каждый ответ инструмента снабжается пометкой:
-  если внутри данных встретится текст, похожий на инструкцию агенту, — это нужно процитировать
-  пользователю, а не выполнять.
-- **Официальный MCP SDK не используется намеренно** — он тянет `httpx`, `pydantic`, `anyio`
-  и их транзитивные зависимости, а через этот процесс проходит OAuth-токен к вашей аналитике
-  и рекламному кабинету. Меньше чужого кода в рантайме — меньше supply-chain поверхность.
+```bash
+pipx install yandex-mcp     # или: pip install yandex-mcp
+yandex-mcp setup            # регистрация приложения Яндекса, по шагам
+yandex-mcp login            # вход в браузере — и всё
+```
+
+Подключение к клиенту (Claude Code):
+
+```bash
+claude mcp add yandex -- yandex-mcp
+```
+
+Или вручную в `.mcp.json` — см. [`.mcp.json.example`](./.mcp.json.example):
+
+```json
+{
+  "mcpServers": {
+    "yandex": {
+      "command": "yandex-mcp",
+      "env": { "YANDEX_MCP_DEFAULT_COUNTER": "12345678" }
+    }
+  }
+}
+```
+
+`YANDEX_MCP_DEFAULT_COUNTER` опционален: без него `counter_id` придётся передавать в каждом
+вызове явно.
+
+### Почему нужен `setup`
+
+Яндекс выдаёт токен только зарегистрированному приложению, поэтому один раз нужно создать
+своё — `yandex-mcp setup` открывает нужную страницу и проводит по шагам (займёт ~5 минут).
+Client secret при этом не нужен: используется PKCE, где подлинность подтверждается тем, что
+только ваш процесс знает `code_verifier`.
+
+Готовый ClientID можно передать и через переменную `YANDEX_MCP_CLIENT_ID` — удобно для
+Docker и CI.
+
+Для Директа нужна отдельная заявка на доступ к API (рассматривается до 7 дней) — Метрика и
+Вебмастер работают сразу.
+
+## Команды
+
+```
+yandex-mcp                      # MCP-сервер по stdio (так его запускает клиент)
+yandex-mcp setup                # регистрация приложения Яндекса по шагам
+yandex-mcp login                # вход: Метрика + Вебмастер одной авторизацией
+yandex-mcp login --service direct   # отдельный узкий токен только для Директа
+yandex-mcp status               # какие токены есть, где лежат, когда истекут
+yandex-mcp logout               # удалить токены из хранилища
+```
+
+Один вход выдаёт общий токен на Метрику и Вебмастер. Если нужен least privilege —
+`login --service metrika` выдаст отдельный токен только на неё; отдельный токен сервиса
+всегда имеет приоритет над общим.
+
+## Где лежат токены
+
+Хранилище выбирается автоматически, по убыванию защищённости:
+
+| Условие | Хранилище |
+|---|---|
+| macOS | Keychain (`security`) |
+| Linux с libsecret | Secret Service (`secret-tool` → GNOME Keyring, KWallet) |
+| Windows, headless-сервер, Docker | файл `secrets.json` с правами 0600 в конфиг-директории |
+
+Принудительно — переменной `YANDEX_MCP_KEYSTORE=keychain|secret-tool|file`.
+Любой отдельный секрет можно прокинуть через окружение, минуя хранилище: имя записи
+переводится в верхний регистр с префиксом, например `yandex-token` →
+`YANDEX_MCP_SECRET_YANDEX_TOKEN`. Это основной способ для Docker и CI.
+
+`yandex-mcp status` всегда показывает, какое хранилище используется сейчас.
 
 ## Инструменты
 
@@ -42,143 +99,64 @@ MCP-сервер для read-only доступа к Яндекс Метрике,
 | `direct_report` | Отчёт Reports API v5 — расход, показы, клики, CTR по кампаниям/объявлениям/группам/поисковым запросам |
 | `wordstat_phrases` | Частотности Вордстата через Live v4 API Директа (новый Wordstat API требует сервисного аккаунта Cloud, поэтому через Live v4) |
 
+## Принципы
+
+- **Токен не хранится в открытом виде там, где есть системное хранилище**, и не появляется
+  ни в одном ответе инструмента, ни в тексте ошибки — есть отдельный `scrub()`, вычищающий
+  Bearer/OAuth-заголовки и Яндекс-токены (`y0_...`, `y1_...`) из любого текста. `status`
+  печатает только sha256-отпечаток.
+- **Почти всё — чтение.** Единственный мутирующий вызов — `webmaster_recrawl`, ограниченный
+  20 URL за раз: у Вебмастера квота 150 в сутки на весь сайт, тратить её молча нельзя.
+- **Данные из API считаются недоверенными.** Поисковые фразы, UTM-метки и названия кампаний
+  пишут посторонние люди; каждый ответ снабжается пометкой, что это данные для анализа,
+  а не инструкции агенту.
+- **Официальный MCP SDK не используется намеренно** — он тянет `httpx`, `pydantic`, `anyio`
+  и их транзитивные зависимости, а через этот процесс проходит OAuth-токен к вашей аналитике
+  и рекламному кабинету. Меньше чужого кода в рантайме — меньше supply-chain поверхность.
+
 ## Структура проекта
 
 ```
-yandex-mcp/
-  yandex_mcp/            # MCP-сервер
-    scrub.py             # вычищение секретов из ответов/ошибок
-    keychain.py          # чтение OAuth-токена из macOS Keychain
-    httpclient.py         # urllib-обёртка: заголовки, единая обработка ошибок
-    server.py             # JSON-RPC/stdio диспетчер, точка входа main()
-    tools/
-      metrika.py
-      webmaster.py
-      direct.py
-      wordstat.py
-  yandex_oauth/            # CLI получения/обновления OAuth-токенов
-    keychain.py
-    callback.py            # локальный HTTP-приёмник redirect (режим без --manual)
-    oauth.py                # PKCE-флоу, обмен кода на токены
-    cli.py                   # argparse, точка входа main()
-  tests/
-  pyproject.toml
+yandex_mcp/
+  cli.py               # yandex-mcp: без аргументов сервер, с аргументами настройка
+  server.py            # JSON-RPC/stdio диспетчер
+  secrets.py           # выбор хранилища: Keychain / secret-tool / файл 0600
+  tokens.py            # токен сервиса, с фолбэком на общий
+  scrub.py             # вычищение секретов из ответов и ошибок
+  httpclient.py        # urllib-обёртка: заголовки, единая обработка ошибок
+  tools/               # по модулю на сервис: metrika, webmaster, direct, wordstat
+  oauth/               # PKCE-флоу, локальный приём redirect, шим старой команды
+tests/
 ```
 
-Ни `yandex_mcp`, ни `yandex_oauth` не тянут внешних библиотек в рантайме — `pytest` в
-`[project.optional-dependencies].dev` нужен только для тестов.
-
-## Требования
-
-- macOS (используется `security` из Keychain Services — на Linux/Windows работать не будет
-  без замены `keychain.py` на другой бэкенд, например `secret-tool`/libsecret или
-  Windows Credential Manager)
-- Python 3.8+
-- OAuth-приложение на [oauth.yandex.ru](https://oauth.yandex.ru/) с нужными правами
-  (Метрика, Вебмастер, Директ — под то, что собираетесь использовать)
-
-## Установка
-
-```bash
-git clone <this-repo>
-cd yandex-mcp
-pip install -e .
-```
-
-Это регистрирует команды `yandex-mcp` и `yandex-oauth` в текущем окружении (`PATH`).
-Без установки сервер тоже запускается — из корня репозитория:
-
-```bash
-python3 -m yandex_mcp
-```
-
-### 1. Завести OAuth-приложение
-
-На [oauth.yandex.ru](https://oauth.yandex.ru/client/new) создайте приложение с нужными
-правами (`metrika:read`, `webmaster:hosts:read-write`, `direct:api` и т.д.). Redirect URI
-можно оставить дефолтным (`https://oauth.yandex.ru/verification_code`) — тогда авторизация
-идёт в режиме `--manual`.
-
-Сохраните client_id/client_secret в Keychain:
-
-```bash
-security add-generic-password -s yandex-oauth-client-id     -a "$USER" -w
-security add-generic-password -s yandex-oauth-client-secret -a "$USER" -w
-```
-
-### 2. Получить токены
-
-Под каждый сервис — свой именованный токен (имя нужно и в `login`, и в конфиге MCP-клиента,
-см. ниже):
-
-```bash
-yandex-oauth login --name yandex-metrika   --scope "metrika:read" --manual
-yandex-oauth login --name yandex-webmaster --scope "webmaster:hosts:read-write" --manual
-yandex-oauth login --name yandex-direct    --scope "direct:api" --manual
-```
-
-Токен и refresh-токен уйдут в Keychain как `<name>-token` / `<name>-refresh` / `<name>-expires`.
-В stdout попадает только sha256-отпечаток — сам токен не печатается никогда.
-
-Продлить, когда истечёт:
-
-```bash
-yandex-oauth refresh --name yandex-metrika
-yandex-oauth status  --name yandex-metrika
-```
-
-### 3. Подключить к MCP-клиенту
-
-Пример для Claude Code (`.mcp.json` или `claude mcp add`) — см. [`.mcp.json.example`](./.mcp.json.example):
-
-```json
-{
-  "mcpServers": {
-    "yandex": {
-      "command": "yandex-mcp",
-      "env": {
-        "YANDEX_MCP_DEFAULT_COUNTER": "12345678"
-      }
-    }
-  }
-}
-```
-
-Команда `yandex-mcp` должна быть на `PATH` (см. установку выше); если ставили в venv —
-укажите полный путь до него, например `/path/to/yandex-mcp/.venv/bin/yandex-mcp`.
-
-`YANDEX_MCP_DEFAULT_COUNTER` — опционален: если не задать, `counter_id` придётся передавать
-в каждом вызове `metrika_summary`/`metrika_report` явно.
-
-## Тесты
+## Разработка
 
 ```bash
 pip install -e ".[dev]"
 pytest
 ```
 
-Тесты мокают Keychain и сеть (`keychain_token`/`http_get`/`http_post_json`/`perform`
-подменяются через `monkeypatch`) — реальных вызовов к API и Keychain не делают.
+Тесты не ходят в сеть и не трогают системное хранилище: сеть и Keychain подменяются через
+`monkeypatch`, секреты пишутся во временный файл. CI гоняет их на Linux, macOS и Windows.
 
 ## Ограничения
 
-- Хранилище токенов — только macOS Keychain. Порт под Linux (`secret-tool`/libsecret) или
-  Windows (Credential Manager) — вопрос замены `keychain_token`/`keychain_get`/`keychain_set`
-  на соответствующий бэкенд.
-- `direct_campaigns`, `direct_report` и `wordstat_phrases` требуют доступа к API Директа —
-  пока заявка на доступ не одобрена, Директ отвечает кодом ошибки 58.
-- `direct_report` при офлайн-обработке (Reports API решает сам, online или offline) может
-  готовиться минуты — тул сам поллит и ждёт, но упирается в квоту Директа: не больше 5
-  офлайн-отчётов в очереди на аккаунт одновременно.
-- `webmaster_sitemaps` отдаёт первые 100 sitemap хоста (без пагинации) — для сайтов с
-  большим индекс-sitemap-деревом видна только верхняя часть.
+- `direct_campaigns`, `direct_report` и `wordstat_phrases` требуют одобренного доступа к API
+  Директа — до одобрения Директ отвечает кодом ошибки 58.
+- `direct_report` при офлайн-обработке может готовиться минуты — тул сам ждёт, но упирается
+  в квоту Директа: не больше 5 офлайн-отчётов в очереди на аккаунт.
+- `webmaster_sitemaps` отдаёт первые 100 sitemap хоста (без пагинации).
 - Ответ каждого инструмента обрезается до 20000 символов — для больших выгрузок сужайте
   период или `limit`.
-- `yandex-oauth` пишет токен в Keychain через `security add-generic-password -w <value>` —
-  значение передаётся аргументом командной строки, поэтому на время работы этого подпроцесса
-  токен виден в списке процессов (`ps -ww`) любому, у кого есть доступ к той же машине.
-  Это ограничение самого `security` CLI (он не читает секрет из stdin), а не то, что можно
-  обойти в коде сервера — учитывайте на многопользовательских машинах.
+- Файловое хранилище (Windows, headless, Docker) держит токен в открытом виде под правами
+  0600 — уровень `~/.aws/credentials` или SSH-ключа без пароля. На Windows права наследуются
+  от профиля пользователя, `chmod` там условен.
+- На macOS запись в Keychain идёт через `security add-generic-password -w <value>`, то есть
+  на время работы подпроцесса значение видно в `ps` — ограничение самого CLI. На Linux
+  `secret-tool` читает значение из stdin, там этой проблемы нет.
+- Обновление токена (`refresh`) у Яндекса требует client_secret, которого у PKCE-приложения
+  нет. Практического значения это не имеет: выданный так токен живёт около года, после чего
+  достаточно повторить `yandex-mcp login`.
 
 ## Лицензия
 

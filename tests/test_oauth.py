@@ -2,7 +2,7 @@ import urllib.error
 
 import pytest
 
-from yandex_oauth import oauth
+from yandex_mcp.oauth import oauth
 
 
 class _FakeHTTPError(urllib.error.HTTPError):

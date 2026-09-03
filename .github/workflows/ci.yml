@@ -6,10 +6,18 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.8", "3.11", "3.13"]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.11"]
+        include:
+          # нижняя и верхняя границы поддерживаемых версий — на одной ОС хватит
+          - os: ubuntu-latest
+            python-version: "3.8"
+          - os: ubuntu-latest
+            python-version: "3.13"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -17,3 +25,15 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e ".[dev]"
       - run: pytest -q
+      - name: smoke test stdio-режима
+        shell: bash
+        run: |
+          echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | yandex-mcp > out.json
+          python -c "import json;d=json.load(open('out.json'));assert len(d['result']['tools'])==12, d"
+      - name: smoke test CLI
+        shell: bash
+        env:
+          YANDEX_MCP_KEYSTORE: file
+        run: |
+          yandex-mcp status
+          yandex-mcp --help

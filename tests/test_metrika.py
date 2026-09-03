@@ -21,7 +21,7 @@ def test_resolve_counter_raises_without_any_counter(monkeypatch):
 def test_summary_handles_empty_totals(monkeypatch):
     # регрессия: раньше "totals": [] проходило мимо дефолта .get(key, default)
     # (он срабатывает только при отсутствующем ключе) и падало на распаковке
-    monkeypatch.setattr(metrika, "keychain_token", lambda name: "fake-token")
+    monkeypatch.setattr(metrika, "service_token", lambda name: "fake-token")
 
     def fake_http_get(url, token, params=None):
         if "goals" in url:
@@ -37,7 +37,7 @@ def test_summary_handles_empty_totals(monkeypatch):
 def test_summary_handles_empty_goal_totals(monkeypatch):
     # регрессия: reaches.get('totals', [0])[0] падал IndexError на "totals": [] у цели
     # (дефолт .get(key, default) не срабатывает, раз ключ присутствует)
-    monkeypatch.setattr(metrika, "keychain_token", lambda name: "fake-token")
+    monkeypatch.setattr(metrika, "service_token", lambda name: "fake-token")
 
     def fake_http_get(url, token, params=None):
         if "goals" in url:
@@ -50,7 +50,7 @@ def test_summary_handles_empty_goal_totals(monkeypatch):
 
 
 def test_summary_batches_goal_metrics_into_one_request(monkeypatch):
-    monkeypatch.setattr(metrika, "keychain_token", lambda name: "fake-token")
+    monkeypatch.setattr(metrika, "service_token", lambda name: "fake-token")
     goal_requests = []
 
     def fake_http_get(url, token, params=None):
@@ -77,7 +77,7 @@ def test_default_previous_period_same_length_immediately_before():
 
 
 def test_compare_computes_delta_and_percent(monkeypatch):
-    monkeypatch.setattr(metrika, "keychain_token", lambda name: "fake-token")
+    monkeypatch.setattr(metrika, "service_token", lambda name: "fake-token")
 
     def fake_http_get(url, token, params=None):
         if params.get("date1") == "2024-02-01":
@@ -95,7 +95,7 @@ def test_compare_computes_delta_and_percent(monkeypatch):
 
 
 def test_compare_with_dimensions_matches_rows_by_key(monkeypatch):
-    monkeypatch.setattr(metrika, "keychain_token", lambda name: "fake-token")
+    monkeypatch.setattr(metrika, "service_token", lambda name: "fake-token")
 
     def fake_http_get(url, token, params=None):
         if params.get("date1") == "2024-02-01":
