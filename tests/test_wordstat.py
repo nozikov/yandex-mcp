@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from yandex_mcp.tools import wordstat
 
 
@@ -29,7 +31,7 @@ def test_keeps_report_when_cleanup_fails(monkeypatch):
     assert "100" in text
 
 
-def test_requires_phrases():
-    import pytest
+def test_requires_phrases(monkeypatch):
+    monkeypatch.setattr(wordstat, "keychain_token", lambda name: "fake-token")
     with pytest.raises(RuntimeError):
         wordstat.tool_wordstat_phrases({})
