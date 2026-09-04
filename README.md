@@ -44,6 +44,16 @@ claude mcp add yandex -- yandex-mcp
 Client secret при этом не нужен: используется PKCE, где подлинность подтверждается тем, что
 только ваш процесс знает `code_verifier`.
 
+При создании Яндекс спрашивает тип приложения — подходят оба, разница в способе входа:
+
+| Тип приложения | Redirect URI | Вход |
+|---|---|---|
+| «Для авторизации пользователей» | задаёте сами: `http://localhost:8765/callback` | `yandex-mcp login` — браузер сам вернёт код |
+| «Для доступа к API или отладки» | зафиксирован на `https://oauth.yandex.ru/verification_code` | `yandex-mcp login --manual` — код со страницы вставляется в терминал |
+
+Права добавляются в разделе «Доступ к данным» по названию: `metrika:read`,
+`webmaster:hosts:read-write`, `direct:api`.
+
 Готовый ClientID можно передать и через переменную `YANDEX_MCP_CLIENT_ID` — удобно для
 Docker и CI.
 
