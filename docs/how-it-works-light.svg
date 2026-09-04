@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 250" width="860" height="250" role="img">
+<style>
+  .t { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; }
+  .m { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; }
+  .title { font-size: 15px; font-weight: 600; }
+  .sub { font-size: 12px; fill: #59636e; }
+  .lbl { font-size: 12px; fill: #59636e; }
+  .step { font-size: 13px; fill: #1f2328; }
+  .cap { font-size: 11px; letter-spacing: .1em; fill: #59636e; }
+  .box { stroke-width: 1.5; }
+  .arrow { stroke: #59636e; stroke-width: 1.5; fill: none; }
+</style>
+<defs>
+  <marker id="a" markerWidth="8" markerHeight="6" refX="7.5" refY="3" orient="auto">
+    <path d="M0 0 L8 3 L0 6 z" fill="#59636e"/>
+  </marker>
+</defs>
+
+<rect x="8" y="34" width="548" height="172" rx="8" fill="none" stroke="#d1d9e0" stroke-width="1.5" stroke-dasharray="5 5"/>
+<text class="t cap" x="24" y="24">ТВОЙ КОМПЬЮТЕР</text>
+<rect x="20" y="62" width="228" height="130" rx="6" class="box" fill="#ddf4ff" stroke="#0969da"/>
+<text class="t title" x="134.0" y="88" text-anchor="middle" fill="#0969da">MCP-клиент</text>
+<text class="t sub" x="134.0" y="110" text-anchor="middle">Claude Code, Cursor,</text>
+<text class="t sub" x="134.0" y="127" text-anchor="middle">VS Code</text>
+<text class="t sub" x="134.0" y="144" text-anchor="middle"></text>
+<text class="t sub" x="134.0" y="161" text-anchor="middle">спрашивает словами</text>
+<rect x="304" y="62" width="236" height="130" rx="6" class="box" fill="#fff8c5" stroke="#9a6700"/>
+<text class="t title" x="422.0" y="88" text-anchor="middle" fill="#9a6700">yandex-mcp</text>
+<text class="t sub" x="422.0" y="110" text-anchor="middle">Python без зависимостей</text>
+<text class="t sub" x="422.0" y="127" text-anchor="middle"></text>
+<text class="t sub" x="422.0" y="144" text-anchor="middle">токен в хранилище ОС,</text>
+<text class="t sub" x="422.0" y="161" text-anchor="middle">наружу не отдаётся</text>
+<rect x="604" y="62" width="240" height="130" rx="6" class="box" fill="#ffebe9" stroke="#cf222e"/>
+<text class="t title" x="724.0" y="88" text-anchor="middle" fill="#cf222e">API Яндекса</text>
+<text class="t sub" x="724.0" y="110" text-anchor="middle">Метрика, Вебмастер,</text>
+<text class="t sub" x="724.0" y="127" text-anchor="middle">Директ, Вордстат</text>
+<text class="t sub" x="724.0" y="144" text-anchor="middle"></text>
+<text class="t sub" x="724.0" y="161" text-anchor="middle">только чтение</text>
+<path class="arrow" d="M252 112 L300 112" marker-end="url(#a)"/>
+<path class="arrow" d="M300 142 L252 142" marker-end="url(#a)" stroke-dasharray="4 3"/>
+<text class="m lbl" x="276" y="100" text-anchor="middle" font-size="11">stdio</text>
+<path class="arrow" d="M544 112 L600 112" marker-end="url(#a)"/>
+<path class="arrow" d="M600 142 L544 142" marker-end="url(#a)" stroke-dasharray="4 3"/>
+<text class="m lbl" x="572" y="100" text-anchor="middle" font-size="11">https</text>
+<text class="t sub" x="430" y="232" text-anchor="middle">Данные идут напрямую от Яндекса к тебе. Посредников нет.</text>
+</svg>

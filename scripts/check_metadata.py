@@ -57,6 +57,28 @@ def main():
     if not re.search(rf"\b{count} инструмент", readme):
         problems.append(f"инструментов сейчас {count}, а README называет другое число")
 
+    # README — это документация к коду, и расходиться они умеют молча
+    for tool in TOOL_SCHEMAS:
+        if f"`{tool['name']}`" not in readme:
+            problems.append(f"инструмент {tool['name']} есть в коде, но не описан в README")
+
+    documented = set(re.findall(r"YANDEX_MCP_[A-Z_]+", readme))
+    used = set(re.findall(r"YANDEX_MCP_[A-Z_]+", "\n".join(
+        path.read_text(encoding="utf-8") for path in (ROOT / "src").rglob("*.py"))))
+    # SECRET_* — это префикс, конкретные имена собираются на лету
+    used = {name for name in used if not name.startswith("YANDEX_MCP_SECRET_")}
+    documented = {name for name in documented if not name.startswith("YANDEX_MCP_SECRET_")}
+    for name in sorted(used - documented):
+        problems.append(f"код читает {name}, но README о ней молчит")
+    for name in sorted(documented - used):
+        problems.append(f"README обещает {name}, но код её не читает")
+
+    # картинки в README ломаются молча: файла нет — GitHub рисует пустую рамку
+    for path in re.findall(r'(?:src|srcset)="(docs/[^"]+)"', readme):
+        if not (ROOT / path).exists():
+            problems.append(f"README ссылается на {path}, а файла нет — "
+                            "пересобери диаграммы: python3 scripts/make_diagrams.py")
+
     if problems:
         for problem in problems:
             print("✗", problem, file=sys.stderr)

@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 250" width="860" height="250" role="img">
+<style>
+  .t { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; }
+  .m { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; }
+  .title { font-size: 15px; font-weight: 600; }
+  .sub { font-size: 12px; fill: #59636e; }
+  .lbl { font-size: 12px; fill: #59636e; }
+  .step { font-size: 13px; fill: #1f2328; }
+  .cap { font-size: 11px; letter-spacing: .1em; fill: #59636e; }
+  .box { stroke-width: 1.5; }
+  .arrow { stroke: #59636e; stroke-width: 1.5; fill: none; }
+</style>
+<defs>
+  <marker id="a" markerWidth="8" markerHeight="6" refX="7.5" refY="3" orient="auto">
+    <path d="M0 0 L8 3 L0 6 z" fill="#59636e"/>
+  </marker>
+</defs>
+
+<text class="t cap" x="20" y="22">ХРАНИЛИЩЕ ВЫБИРАЕТСЯ САМО — СВЕРХУ ВНИЗ, ДО ПЕРВОГО ПОДХОДЯЩЕГО</text>
+<rect x="20" y="42" width="820" height="36" rx="6" fill="#fff8c5" stroke="#9a6700" stroke-width="1.5"/>
+<text class="m" x="40" y="65" font-size="13" font-weight="600" fill="#9a6700">Переменная окружения</text>
+<text class="t sub" x="820" y="65" text-anchor="end">если задана — Docker и CI</text>
+<path class="arrow" d="M40 78 L40 88" marker-end="url(#a)"/>
+<rect x="20" y="88" width="820" height="36" rx="6" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.5"/>
+<text class="m" x="40" y="111" font-size="13" font-weight="600" fill="#1a7f37">Keychain</text>
+<text class="t sub" x="820" y="111" text-anchor="end">macOS</text>
+<path class="arrow" d="M40 124 L40 134" marker-end="url(#a)"/>
+<rect x="20" y="134" width="820" height="36" rx="6" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.5"/>
+<text class="m" x="40" y="157" font-size="13" font-weight="600" fill="#1a7f37">secret-tool</text>
+<text class="t sub" x="820" y="157" text-anchor="end">Linux: GNOME Keyring, KWallet</text>
+<path class="arrow" d="M40 170 L40 180" marker-end="url(#a)"/>
+<rect x="20" y="180" width="820" height="36" rx="6" fill="#fff8c5" stroke="#9a6700" stroke-width="1.5"/>
+<text class="m" x="40" y="203" font-size="13" font-weight="600" fill="#9a6700">файл с правами 0600</text>
+<text class="t sub" x="820" y="203" text-anchor="end">Windows, сервер без графики, контейнер</text>
+<text class="t sub" x="20" y="240">Токен не появляется ни в ответе инструмента, ни в тексте ошибки — есть отдельный фильтр.</text>
+</svg>
