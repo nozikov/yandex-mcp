@@ -84,6 +84,20 @@ def test_setup_stores_client_id(monkeypatch, capsys):
     assert store.get_secret(cli.flow.CLIENT_ID_ITEM) == "my-client-id"
 
 
+def test_setup_takes_client_id_from_the_argument(capsys):
+    # так вызывает агент из чата: input() там некому ответить, и зависнуть нельзя
+    cli.main(["setup", "--client-id", "id-from-chat"])
+    assert store.get_secret(cli.flow.CLIENT_ID_ITEM) == "id-from-chat"
+    output = capsys.readouterr().out
+    assert "Открой" not in output      # инструкцию печатать незачем, ID уже есть
+
+
+def test_setup_rejects_an_empty_client_id():
+    with pytest.raises(SystemExit):
+        cli.main(["setup", "--client-id", "   "])
+    assert store.get_secret(cli.flow.CLIENT_ID_ITEM) is None
+
+
 def test_status_reports_absent_tokens(capsys):
     cli.main(["status"])
     output = capsys.readouterr().out

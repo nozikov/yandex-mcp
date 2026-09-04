@@ -55,6 +55,17 @@ def _scope_for(services):
 
 
 def command_setup(args):
+    if args.client_id is not None:
+        # ClientID уже на руках — так вызывает агент из чата, где некому
+        # читать инструкцию и нечем ответить на input()
+        identifier = args.client_id.strip()
+        if not identifier:
+            sys.exit("ClientID пустой")
+        set_secret(flow.CLIENT_ID_ITEM, identifier)
+        print(f"ClientID сохранён в: {backend().describe()}")
+        print("Дальше: yandex-mcp login")
+        return
+
     print(SETUP_STEPS)
     if not args.no_browser:
         webbrowser.open(REGISTER_URL)
@@ -142,6 +153,8 @@ def build_parser():
 
     setup_parser = subparsers.add_parser("setup", help="регистрация приложения Яндекса по шагам")
     setup_parser.add_argument("--no-browser", action="store_true", help="не открывать браузер")
+    setup_parser.add_argument("--client-id", metavar="ID",
+                              help="сохранить готовый ClientID, ничего не спрашивая")
     setup_parser.set_defaults(handler=command_setup)
 
     login_parser = subparsers.add_parser("login", help="вход через браузер")

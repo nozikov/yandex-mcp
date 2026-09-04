@@ -39,6 +39,15 @@
 /plugin install yandex-mcp@nozikov
 ```
 
+**Codex CLI** — дописать в `~/.codex/config.toml` и перезапустить Codex:
+
+```toml
+[mcp_servers.yandex]
+command = "uvx"
+args = ["yandex-mcp"]
+env = { YANDEX_MCP_DEFAULT_COUNTER = "12345678" }
+```
+
 **Любой другой клиент** — через PyPI:
 
 ```bash
@@ -73,6 +82,13 @@ claude mcp add yandex -e YANDEX_MCP_DEFAULT_COUNTER=12345678 -- uvx yandex-mcp
 Один раз перед этим нужно зарегистрировать своё приложение в Яндексе — это бесплатно
 и занимает пять минут. Команда `yandex-mcp setup` откроет нужную страницу и подскажет,
 что заполнять. Пароль от приложения не понадобится: используется PKCE.
+
+Единственный шаг, который агент не сделает за тебя, — сама регистрация: это твой аккаунт.
+А полученный ClientID можно просто продиктовать ему, он не секрет:
+
+```bash
+yandex-mcp setup --client-id <ClientID>
+```
 
 <details>
 <summary>Что вписать при регистрации приложения</summary>
