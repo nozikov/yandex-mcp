@@ -10,6 +10,10 @@
 [![Install in Cursor](https://img.shields.io/badge/Cursor-Установить-000000?style=flat-square&logo=cursor&logoColor=white)](cursor://anysphere.cursor-deeplink/mcp/install?name=yandex&config=eyJjb21tYW5kIjogInV2eCIsICJhcmdzIjogWyJ5YW5kZXgtbWNwIl19)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](./LICENSE)
 
+<sub>Кнопки добавляют сервер в конфиг редактора одним действием — он будет запускаться
+командой `uvx yandex-mcp`. Ничего не устанавливается в систему заранее и никуда не
+отправляется; что делает сервер, описано ниже.</sub>
+
 ```
 > Как изменился трафик за последний месяц и откуда пришёл рост?
 > По каким запросам мы на второй странице — там, где до топа осталось чуть-чуть?
