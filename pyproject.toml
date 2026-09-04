@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "yandex-mcp"
-version = "2.0.0"
+version = "2.1.0"
 description = "Read-only MCP server for Yandex Metrika, Webmaster and Direct (incl. Wordstat)"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -22,6 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
     "Topic :: Office/Business",
 ]
@@ -29,12 +30,14 @@ classifiers = [
 [project.urls]
 Homepage = "https://github.com/nozikov/yandex-mcp"
 Issues = "https://github.com/nozikov/yandex-mcp/issues"
+Changelog = "https://github.com/nozikov/yandex-mcp/blob/main/CHANGELOG.md"
+Source = "https://github.com/nozikov/yandex-mcp"
 
 [project.scripts]
 yandex-mcp = "yandex_mcp.cli:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=7"]
+dev = ["pytest>=7", "build>=1", "twine>=5"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

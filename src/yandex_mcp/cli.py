@@ -173,7 +173,12 @@ def main(argv=None):
     # вывод команд тоже кириллический — на Windows консоль по умолчанию не в UTF-8
     server.use_utf8_stdio()
     args = build_parser().parse_args(argv)
-    args.handler(args)
+    try:
+        args.handler(args)
+    except flow.OAuthError as error:
+        # в CLI ошибка авторизации — это выход с понятным текстом, без трейсбека;
+        # в MCP-режиме тот же класс ловит tools/auth.py и отдаёт текст агенту
+        sys.exit(str(error))
 
 
 if __name__ == "__main__":

@@ -48,7 +48,15 @@ SERVICE_SCOPES = {
 DEFAULT_SERVICES = ("metrika", "webmaster", "direct")
 
 
-class ScopeRejected(RuntimeError):
+class OAuthError(RuntimeError):
+    """Ошибка авторизации, которую нужно показать человеку.
+
+    Раньше здесь был sys.exit, но тот же код теперь работает и внутри MCP-сервера,
+    где завершать процесс нельзя. CLI ловит это в main() и выходит с тем же текстом.
+    """
+
+
+class ScopeRejected(OAuthError):
     """Яндекс не дал запрошенные права — обычно у приложения их просто нет.
 
     Самый частый случай: `direct:api` без одобренной заявки в кабинете Директа.
@@ -66,7 +74,7 @@ def client_id():
     """ID приложения: переменная окружения, затем хранилище секретов."""
     value = os.environ.get(CLIENT_ID_ENV) or get_secret(CLIENT_ID_ITEM)
     if not value:
-        sys.exit(
+        raise OAuthError(
             "не задан client_id приложения Яндекса.\n"
             "Выполни `yandex-mcp setup` — оно проведёт по шагам регистрации,\n"
             f"либо передай готовый через {CLIENT_ID_ENV}.")
@@ -92,22 +100,38 @@ def post_token(params, allow_retry_without_redirect=False):
             retried = dict(params)
             retried.pop("redirect_uri", None)
             return post_token(retried)
-        sys.exit(f"OAuth отказал: {payload.get('error', 'unknown')} — "
-                 f"{description or 'без описания'}")
+        raise OAuthError(f"OAuth отказал: {payload.get('error', 'unknown')} — "
+                         f"{description or 'без описания'}")
     except urllib.error.URLError as error:
-        sys.exit(f"oauth.yandex.ru недоступен ({error.reason}) — повтори команду")
+        raise OAuthError(f"oauth.yandex.ru недоступен ({error.reason}) — повтори команду")
 
 
-def save_tokens(name, tokens):
+def store_tokens(name, tokens):
+    """Записать токены в хранилище. Ничего не печатает — годится и для MCP-режима.
+
+    Возвращает только отпечатки и срок: сам токен наружу не отдаётся никогда.
+    """
     set_secret(f"{name}-token", tokens["access_token"])
     if tokens.get("refresh_token"):
         set_secret(f"{name}-refresh", tokens["refresh_token"])
     expires_at = int(time.time()) + int(tokens.get("expires_in", 0))
     set_secret(f"{name}-expires", str(expires_at))
-    print(f"access_token  {fingerprint(tokens['access_token'])}")
-    print(f"refresh_token {fingerprint(tokens.get('refresh_token'))}")
-    print(f"истекает      {time.strftime('%Y-%m-%d', time.localtime(expires_at))}")
-    print(f"\nсохранено в: {backend().describe()}")
+    return {
+        "entry": name,
+        "fingerprint": fingerprint(tokens["access_token"]),
+        "refresh_fingerprint": fingerprint(tokens.get("refresh_token")),
+        "expires_at": expires_at,
+        "expires_on": time.strftime("%Y-%m-%d", time.localtime(expires_at)),
+        "storage": backend().describe(),
+    }
+
+
+def save_tokens(name, tokens):
+    info = store_tokens(name, tokens)
+    print(f"access_token  {info['fingerprint']}")
+    print(f"refresh_token {info['refresh_fingerprint']}")
+    print(f"истекает      {info['expires_on']}")
+    print(f"\nсохранено в: {info['storage']}")
 
 
 def _token_request_params(code, redirect_uri, verifier):
@@ -124,10 +148,12 @@ def _token_request_params(code, redirect_uri, verifier):
     return params
 
 
-def login(name, scope, manual=False, no_browser=False):
-    identifier = client_id()
-    redirect_uri = MANUAL_REDIRECT_URI if manual else LOCAL_REDIRECT_URI
+def begin(scope, redirect_uri):
+    """Собрать ссылку авторизации и одноразовые секреты PKCE.
 
+    Отделено от login(), потому что тем же самым пользуется вход из чата
+    (tools/auth.py), где нет ни терминала, ни браузера под рукой.
+    """
     verifier = base64.urlsafe_b64encode(secrets.token_bytes(64)).decode().rstrip("=")
     challenge = base64.urlsafe_b64encode(
         hashlib.sha256(verifier.encode()).digest()
@@ -136,13 +162,27 @@ def login(name, scope, manual=False, no_browser=False):
 
     url = AUTHORIZE_URL + "?" + urllib.parse.urlencode({
         "response_type": "code",
-        "client_id": identifier,
+        "client_id": client_id(),
         "redirect_uri": redirect_uri,
         "scope": scope,
         "state": state,
         "code_challenge": challenge,
         "code_challenge_method": "S256",
     })
+    return {"url": url, "verifier": verifier, "state": state, "redirect_uri": redirect_uri}
+
+
+def complete(name, code, redirect_uri, verifier, manual=False):
+    """Обменять код на токен и молча положить в хранилище."""
+    tokens = post_token(_token_request_params(code, redirect_uri, verifier),
+                        allow_retry_without_redirect=manual)
+    return store_tokens(name, tokens)
+
+
+def login(name, scope, manual=False, no_browser=False):
+    redirect_uri = MANUAL_REDIRECT_URI if manual else LOCAL_REDIRECT_URI
+    started = begin(scope, redirect_uri)
+    url, verifier, state = started["url"], started["verifier"], started["state"]
 
     if no_browser:
         # verifier переживает завершение процесса — обмен делается командой --exchange
@@ -162,7 +202,7 @@ def login(name, scope, manual=False, no_browser=False):
         print("Вставь его сюда (код одноразовый, живёт 10 минут):")
         code = input("код: ").strip()
         if not code:
-            sys.exit("код не введён")
+            raise OAuthError("код не введён")
     else:
         print(f"Жду подтверждения на {LOCAL_REDIRECT_URI} …")
         CallbackHandler.reset()
@@ -174,9 +214,9 @@ def login(name, scope, manual=False, no_browser=False):
             # повторить вход с меньшим набором
             raise ScopeRejected(CallbackHandler.error_description or CallbackHandler.error)
         if not CallbackHandler.code:
-            sys.exit("код авторизации не получен")
+            raise OAuthError("код авторизации не получен")
         if CallbackHandler.state != state:
-            sys.exit("state не совпал — запрос мог быть подменён, повтори")
+            raise OAuthError("state не совпал — запрос мог быть подменён, повтори")
         code = CallbackHandler.code
 
     tokens = post_token(_token_request_params(code, redirect_uri, verifier),
@@ -186,7 +226,7 @@ def login(name, scope, manual=False, no_browser=False):
 
 def exchange(code):
     if not os.path.exists(PENDING_FILE):
-        sys.exit("нет незавершённой авторизации — сначала `yandex-mcp login --no-browser`")
+        raise OAuthError("нет незавершённой авторизации — сначала `yandex-mcp login --no-browser`")
     with open(PENDING_FILE) as pending_file:
         pending = json.load(pending_file)
 
@@ -201,7 +241,7 @@ def exchange(code):
 def refresh(name):
     refresh_token = get_secret(f"{name}-refresh")
     if not refresh_token:
-        sys.exit(f"нет refresh-токена для {name} — выполни `yandex-mcp login` заново")
+        raise OAuthError(f"нет refresh-токена для {name} — выполни `yandex-mcp login` заново")
     params = {
         "grant_type": "refresh_token",
         "refresh_token": refresh_token,

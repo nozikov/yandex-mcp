@@ -4,7 +4,8 @@ from yandex_mcp.tools import direct
 def test_direct_campaigns_reports_units(monkeypatch):
     monkeypatch.setattr(direct, "service_token", lambda name: "fake-token")
 
-    def fake_http_post_json(url, token, payload, bearer=True, headers_out=None):
+    def fake_http_post_json(url, token, payload, bearer=True, headers_out=None,
+                            extra_headers=None):
         if headers_out is not None:
             headers_out["Units"] = "10/990/1000"
         return {"result": {"Campaigns": [
@@ -20,7 +21,8 @@ def test_direct_campaigns_reports_units(monkeypatch):
 def test_direct_campaigns_surfaces_api_error(monkeypatch):
     monkeypatch.setattr(direct, "service_token", lambda name: "fake-token")
 
-    def fake_http_post_json(url, token, payload, bearer=True, headers_out=None):
+    def fake_http_post_json(url, token, payload, bearer=True, headers_out=None,
+                            extra_headers=None):
         return {"error": {"error_code": 58, "error_string": "no access",
                           "error_detail": "заявка не одобрена"}}
 
@@ -87,3 +89,51 @@ def test_report_raises_on_unexpected_status(monkeypatch):
     import pytest
     with pytest.raises(RuntimeError):
         direct.tool_direct_report({})
+
+
+def test_sandbox_is_off_by_default_and_switches_by_env(monkeypatch):
+    monkeypatch.delenv(direct.SANDBOX_ENV, raising=False)
+    assert direct._base() == direct.LIVE_BASE
+    monkeypatch.setenv(direct.SANDBOX_ENV, "1")
+    assert direct._base() == direct.SANDBOX_BASE
+    # осмысленное значение, а не любая непустая строка
+    monkeypatch.setenv(direct.SANDBOX_ENV, "нет")
+    assert direct._base() == direct.LIVE_BASE
+
+
+def test_campaigns_go_to_sandbox_when_enabled(monkeypatch):
+    monkeypatch.setenv(direct.SANDBOX_ENV, "true")
+    monkeypatch.setattr(direct, "service_token", lambda name: "fake-token")
+    seen = {}
+
+    def fake_http_post_json(url, token, payload, bearer=True, headers_out=None,
+                            extra_headers=None):
+        seen["url"] = url
+        return {"result": {"Campaigns": []}}
+
+    monkeypatch.setattr(direct, "http_post_json", fake_http_post_json)
+    direct.tool_direct_campaigns({})
+    assert seen["url"].startswith(direct.SANDBOX_BASE)
+
+
+def test_client_login_from_argument_wins_over_env(monkeypatch):
+    monkeypatch.setenv(direct.CLIENT_LOGIN_ENV, "from-env")
+    assert direct._client_login({"client_login": "from-arg"}) == {"Client-Login": "from-arg"}
+    assert direct._client_login({}) == {"Client-Login": "from-env"}
+    monkeypatch.delenv(direct.CLIENT_LOGIN_ENV, raising=False)
+    assert direct._client_login({}) is None
+
+
+def test_campaigns_pass_client_login_header(monkeypatch):
+    monkeypatch.delenv(direct.SANDBOX_ENV, raising=False)
+    monkeypatch.setattr(direct, "service_token", lambda name: "fake-token")
+    seen = {}
+
+    def fake_http_post_json(url, token, payload, bearer=True, headers_out=None,
+                            extra_headers=None):
+        seen["extra"] = extra_headers
+        return {"result": {"Campaigns": []}}
+
+    monkeypatch.setattr(direct, "http_post_json", fake_http_post_json)
+    direct.tool_direct_campaigns({"client_login": "agency-client"})
+    assert seen["extra"] == {"Client-Login": "agency-client"}

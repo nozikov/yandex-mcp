@@ -1,3 +1,5 @@
+import pytest
+
 from yandex_mcp.tools import webmaster
 from yandex_mcp.tools.webmaster import _host_matches
 
@@ -71,3 +73,25 @@ def test_sitemaps_reports_list(monkeypatch):
     text = webmaster.tool_webmaster_sitemaps({})
     assert "sitemap.xml" in text
     assert "42 url" in text
+
+
+def test_recrawl_refuses_without_confirm(monkeypatch):
+    # переобход необратим и тратит суточную квоту: агент обязан попросить его явно,
+    # и до подтверждения не должно происходить вообще ничего — даже чтения токена
+    monkeypatch.setattr(webmaster, "service_token",
+                        lambda name: pytest.fail("токен не должен запрашиваться без confirm"))
+    with pytest.raises(RuntimeError) as error:
+        webmaster.tool_webmaster_recrawl({"urls": ["https://example.com/a"]})
+    assert "confirm: true" in str(error.value)
+
+
+def test_recrawl_proceeds_with_confirm(monkeypatch):
+    monkeypatch.setattr(webmaster, "service_token", lambda name: "fake-token")
+    monkeypatch.setattr(webmaster, "_webmaster_host",
+                        lambda token: ("user-1", [{"host_id": "h1",
+                                                   "unicode_host_url": "https://example.com/"}]))
+    monkeypatch.setattr(webmaster, "http_post_json",
+                        lambda *args, **kwargs: {"task_id": "t-1"})
+    text = webmaster.tool_webmaster_recrawl(
+        {"urls": ["https://example.com/a"], "confirm": True})
+    assert "t-1" in text

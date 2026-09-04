@@ -18,6 +18,7 @@ def test_tools_list_exposes_all_tool_names():
         "webmaster_summary", "webmaster_queries", "webmaster_indexing",
         "webmaster_sitemaps", "webmaster_recrawl",
         "direct_campaigns", "direct_report", "wordstat_phrases",
+        "yandex_auth_status", "yandex_login", "yandex_submit_code",
     }
 
 

@@ -16,12 +16,14 @@ def http_get(url, token, params=None, bearer=False):
     return perform(request)
 
 
-def http_post_json(url, token, payload, bearer=True, headers_out=None):
+def http_post_json(url, token, payload, bearer=True, headers_out=None, extra_headers=None):
     headers = {
         "Authorization": f"{'Bearer' if bearer else 'OAuth'} {token}",
         "Content-Type": "application/json; charset=utf-8",
         "Accept-Language": "ru",
     }
+    if extra_headers:
+        headers.update(extra_headers)
     body = json.dumps(payload, ensure_ascii=False).encode()
     return perform(urllib.request.Request(url, data=body, headers=headers, method="POST"),
                    headers_out=headers_out)

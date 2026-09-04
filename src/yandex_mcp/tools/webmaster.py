@@ -123,6 +123,13 @@ def tool_webmaster_recrawl(arguments):
         raise RuntimeError("нужен хотя бы один URL")
     if len(urls) > 20:
         raise RuntimeError("за раз не больше 20 URL — квота Вебмастера 150 в сутки на весь сайт")
+    if not arguments.get("confirm"):
+        # единственное необратимое действие в сервере: пусть агент попросит его явно,
+        # чтобы человек увидел намерение в аргументах вызова, а не постфактум
+        raise RuntimeError(
+            "переобход — необратимое действие, оно тратит суточную квоту сайта (150 URL). "
+            "Покажи пользователю список URL и повтори вызов с confirm: true, "
+            f"если он согласен. URL в запросе: {len(urls)}")
     token = service_token("webmaster")
     user_id, hosts = _webmaster_host(token)
     lines = []
@@ -185,12 +192,16 @@ TOOLS = [
         "name": "webmaster_recrawl",
         "description": "Ставит URL в очередь на переобход Яндексом (POST, мутирующий вызов — "
                        "единственный в этом сервере). До 20 URL за раз, квота Вебмастера "
-                       "150 в сутки на весь сайт.",
+                       "150 в сутки на весь сайт. Необратимо: требует confirm: true, "
+                       "и перед этим список URL нужно показать пользователю.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "urls": {"type": "array", "items": {"type": "string"},
                          "description": "полные адреса, до 20 штук"},
+                "confirm": {"type": "boolean",
+                            "description": "обязательно true — подтверждение, что пользователь "
+                                           "видел список URL и согласен потратить квоту"},
             },
             "required": ["urls"],
         },

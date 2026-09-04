@@ -10,6 +10,7 @@ https://yandex.com/dev/direct/doc/ru/reports и https://yandex.ru/dev/direct/doc
 """
 
 import json
+import os
 import time
 import urllib.error
 import urllib.request
@@ -18,8 +19,24 @@ from ..httpclient import http_post_json
 from ..auth.tokens import service_token
 from ..scrub import scrub
 
-DIRECT = "https://api.direct.yandex.com/json/v5"
-REPORTS = "https://api.direct.yandex.com/json/v5/reports"
+LIVE_BASE = "https://api.direct.yandex.com/json/v5"
+SANDBOX_BASE = "https://api-sandbox.direct.yandex.com/json/v5"
+
+SANDBOX_ENV = "YANDEX_MCP_DIRECT_SANDBOX"
+CLIENT_LOGIN_ENV = "YANDEX_MCP_DIRECT_CLIENT_LOGIN"
+
+
+def _base():
+    """Боевой Директ или песочница — те же методы на тестовом аккаунте, без расхода баллов."""
+    if os.environ.get(SANDBOX_ENV, "").strip().lower() in ("1", "true", "yes", "on"):
+        return SANDBOX_BASE
+    return LIVE_BASE
+
+
+def _client_login(arguments):
+    """Логин клиента для агентских аккаунтов: аргумент вызова важнее переменной окружения."""
+    login = arguments.get("client_login") or os.environ.get(CLIENT_LOGIN_ENV)
+    return {"Client-Login": login} if login else None
 
 DEFAULT_REPORT_FIELDS = ["CampaignId", "CampaignName", "Impressions", "Clicks", "Cost", "Ctr", "AvgCpc"]
 
@@ -27,7 +44,8 @@ DEFAULT_REPORT_FIELDS = ["CampaignId", "CampaignName", "Impressions", "Clicks", 
 def tool_direct_campaigns(arguments):
     token = service_token("direct")
     response_headers = {}
-    result = http_post_json(f"{DIRECT}/campaigns", token, headers_out=response_headers, payload={
+    result = http_post_json(f"{_base()}/campaigns", token, headers_out=response_headers,
+                           extra_headers=_client_login(arguments), payload={
         "method": "get",
         "params": {
             "SelectionCriteria": {},
@@ -129,11 +147,11 @@ def tool_direct_report(arguments):
         "skipColumnHeader": "true",
         "Content-Type": "application/json; charset=utf-8",
     }
-    if arguments.get("client_login"):
-        headers["Client-Login"] = arguments["client_login"]
+    headers.update(_client_login(arguments) or {})
 
     for _ in range(20):
-        request = urllib.request.Request(REPORTS, data=body_bytes, headers=headers, method="POST")
+        request = urllib.request.Request(f"{_base()}/reports", data=body_bytes,
+                                         headers=headers, method="POST")
         status, body, retry_in = _do_report_request(request)
         if status == 200:
             return _format_report(body, field_names)
@@ -151,7 +169,11 @@ TOOLS = [
                        "Пока не подана заявка на доступ к API Директа, вернёт код 58.",
         "inputSchema": {
             "type": "object",
-            "properties": {"limit": {"type": "integer"}},
+            "properties": {
+                "limit": {"type": "integer"},
+                "client_login": {"type": "string",
+                                 "description": "логин клиента для агентских аккаунтов, опционально"},
+            },
         },
         "handler": tool_direct_campaigns,
     },
