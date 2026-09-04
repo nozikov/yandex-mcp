@@ -1,0 +1,26 @@
+name: publish
+
+# Публикация на PyPI без токена: Trusted Publishing (OIDC).
+# PyPI доверяет конкретному workflow в конкретном репозитории, поэтому
+# ни API-ключа, ни пароля нигде не хранится — ни на диске, ни в секретах.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write        # GitHub выдаёт короткоживущий OIDC-токен для PyPI
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: метаданные не разъехались между файлами
+        run: python scripts/check_metadata.py
+      - run: pip install build
+      - run: python -m build
+      - uses: pypa/gh-action-pypi-publish@release/v1
