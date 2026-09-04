@@ -5,6 +5,16 @@ import pytest
 from yandex_mcp.auth import flow
 
 
+@pytest.fixture(autouse=True)
+def _isolated(file_store, monkeypatch):
+    """Ни один тест модуля не должен видеть системное хранилище и настоящий client_id.
+
+    Регрессия: тест begin() проходил на машине разработчика, где ClientID лежит
+    в Keychain, и падал в CI на чистой системе.
+    """
+    monkeypatch.delenv("YANDEX_MCP_CLIENT_ID", raising=False)
+
+
 class _FakeHTTPError(urllib.error.HTTPError):
     def __init__(self, body):
         super().__init__("https://oauth.yandex.ru/token", 502, "Bad Gateway", {}, None)
@@ -38,7 +48,16 @@ def test_post_token_surfaces_yandex_error_description(monkeypatch, capsys):
     assert "code expired" in str(excinfo.value)
 
 
-def test_begin_builds_pkce_url_without_leaking_verifier():
+def test_begin_requires_client_id():
+    # на чистой машине приложение ещё не зарегистрировано — это должно быть
+    # понятной ошибкой, а не пустым client_id в ссылке авторизации
+    with pytest.raises(flow.OAuthError) as error:
+        flow.begin("metrika:read", flow.MANUAL_REDIRECT_URI)
+    assert "client_id" in str(error.value)
+
+
+def test_begin_builds_pkce_url_without_leaking_verifier(monkeypatch):
+    monkeypatch.setenv("YANDEX_MCP_CLIENT_ID", "test-client")
     started = flow.begin("metrika:read", flow.MANUAL_REDIRECT_URI)
     assert "code_challenge_method=S256" in started["url"]
     assert "response_type=code" in started["url"]
@@ -47,7 +66,7 @@ def test_begin_builds_pkce_url_without_leaking_verifier():
     assert started["state"] in started["url"]
 
 
-def test_store_tokens_returns_fingerprint_not_token(file_store):
+def test_store_tokens_returns_fingerprint_not_token():
     info = flow.store_tokens("yandex-mcp-test",
                              {"access_token": "y0_секретное", "expires_in": 3600})
     assert info["fingerprint"].startswith("sha256:")
