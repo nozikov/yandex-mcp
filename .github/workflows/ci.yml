@@ -29,7 +29,7 @@ jobs:
         shell: bash
         run: |
           echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | yandex-mcp > out.json
-          python -c "import json;d=json.load(open('out.json', encoding='utf-8'));assert len(d['result']['tools'])==12, d"
+          python -c "import json,sys;sys.path.insert(0,'src');from yandex_mcp.registry import TOOL_SCHEMAS;d=json.load(open('out.json', encoding='utf-8'));assert len(d['result']['tools'])==len(TOOL_SCHEMAS), d"
       - name: smoke test CLI
         shell: bash
         env:
@@ -49,18 +49,5 @@ jobs:
       - run: python -m build
       - name: метаданные пакета пригодны для PyPI
         run: twine check dist/*
-      - name: имя сервера в README совпадает с server.json
-        run: |
-          python - <<'EOF'
-          import json, pathlib
-          name = json.loads(pathlib.Path("server.json").read_text())["name"]
-          readme = pathlib.Path("README.md").read_text()
-          assert f"mcp-name: {name}" in readme, (
-              "реестр MCP проверяет владение пакетом по строке mcp-name в README — "
-              f"она должна содержать {name}")
-          version = json.loads(pathlib.Path("server.json").read_text())["version"]
-          pyproject = pathlib.Path("pyproject.toml").read_text()
-          assert f'version = "{version}"' in pyproject, (
-              "версия в server.json разошлась с pyproject.toml")
-          print("ok:", name, version)
-          EOF
+      - name: метаданные не разъехались между файлами
+        run: python scripts/check_metadata.py
