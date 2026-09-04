@@ -35,6 +35,11 @@ def main():
         problems.append(f"версия в .claude-plugin/plugin.json ({plugin['version']}) "
                         f"разошлась с server.json ({version})")
 
+    # реестр MCP режет описание на 100 символах и отдаёт 422 уже при публикации
+    if len(server["description"]) > 100:
+        problems.append(f"описание в server.json длиннее 100 символов "
+                        f"({len(server['description'])}) — реестр MCP такое не примет")
+
     for package in server.get("packages", []):
         if package.get("version") != version:
             problems.append(f"версия пакета {package.get('identifier')} в server.json "
