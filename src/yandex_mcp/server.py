@@ -7,7 +7,7 @@ from .scrub import scrub
 from .registry import HANDLERS, TOOL_SCHEMAS
 
 PROTOCOL_VERSION = "2024-11-05"
-SERVER_INFO = {"name": "yandex", "version": "1.1.0"}
+SERVER_INFO = {"name": "yandex", "version": "2.0.0"}
 MAX_RESPONSE_CHARS = 20000
 
 UNTRUSTED_NOTE = (
