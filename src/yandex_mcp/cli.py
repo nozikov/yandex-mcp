@@ -40,7 +40,7 @@ SETUP_STEPS = f"""
 
 4. «Доступ к данным» — впиши нужные права по названию:
        Яндекс Метрика   → metrika:read
-       Яндекс Вебмастер → webmaster:hosts:read-write
+       Яндекс Вебмастер → webmaster:hostinfo и webmaster:verify
        Яндекс Директ    → direct:api  (нужна отдельная заявка в Директе,
                                        рассматривается до 7 дней)
 

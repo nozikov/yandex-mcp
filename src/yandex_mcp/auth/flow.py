@@ -40,7 +40,9 @@ TOKEN_URL = "https://oauth.yandex.ru/token"
 # заявки, и без неё авторизация с этим правом не пройдёт
 SERVICE_SCOPES = {
     "metrika": "metrika:read",
-    "webmaster": "webmaster:hosts:read-write",
+    # у Вебмастера два права, и оба нужны: hostinfo даёт данные по сайтам,
+    # verify — действия от имени владельца (в том числе переобход)
+    "webmaster": "webmaster:hostinfo webmaster:verify",
     "direct": "direct:api",
 }
 DEFAULT_SERVICES = ("metrika", "webmaster", "direct")

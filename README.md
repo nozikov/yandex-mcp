@@ -52,7 +52,7 @@ Client secret при этом не нужен: используется PKCE, г
 | «Для доступа к API или отладки» | зафиксирован на `https://oauth.yandex.ru/verification_code` | `yandex-mcp login --manual` — код со страницы вставляется в терминал |
 
 Права добавляются в разделе «Доступ к данным» по названию: `metrika:read`,
-`webmaster:hosts:read-write`, `direct:api`.
+`webmaster:hostinfo`, `webmaster:verify`, `direct:api`.
 
 Готовый ClientID можно передать и через переменную `YANDEX_MCP_CLIENT_ID` — удобно для
 Docker и CI.

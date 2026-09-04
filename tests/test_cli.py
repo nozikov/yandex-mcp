@@ -31,7 +31,8 @@ def test_login_asks_for_everything_by_default(monkeypatch):
     cli.main(["login"])
     assert captured["name"] == tokens.entry()
     assert "metrika:read" in captured["scope"]
-    assert "webmaster:hosts:read-write" in captured["scope"]
+    assert "webmaster:hostinfo" in captured["scope"]
+    assert "webmaster:verify" in captured["scope"]
     assert "direct:api" in captured["scope"]
 
 
