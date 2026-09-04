@@ -37,3 +37,30 @@ jobs:
         run: |
           yandex-mcp status
           yandex-mcp --help
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install build twine
+      - run: python -m build
+      - name: метаданные пакета пригодны для PyPI
+        run: twine check dist/*
+      - name: имя сервера в README совпадает с server.json
+        run: |
+          python - <<'EOF'
+          import json, pathlib
+          name = json.loads(pathlib.Path("server.json").read_text())["name"]
+          readme = pathlib.Path("README.md").read_text()
+          assert f"mcp-name: {name}" in readme, (
+              "реестр MCP проверяет владение пакетом по строке mcp-name в README — "
+              f"она должна содержать {name}")
+          version = json.loads(pathlib.Path("server.json").read_text())["version"]
+          pyproject = pathlib.Path("pyproject.toml").read_text()
+          assert f'version = "{version}"' in pyproject, (
+              "версия в server.json разошлась с pyproject.toml")
+          print("ok:", name, version)
+          EOF

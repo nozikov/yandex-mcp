@@ -1,0 +1,20 @@
+{
+  "name": "nozikov",
+  "description": "MCP-сервер к аналитике и рекламе Яндекса",
+  "owner": {
+    "name": "Anton Nozikov",
+    "url": "https://github.com/nozikov"
+  },
+  "plugins": [
+    {
+      "name": "yandex-mcp",
+      "source": "./",
+      "description": "Метрика, Вебмастер, Директ и Вордстат в одном MCP-сервере: 15 инструментов, ноль зависимостей, токен в хранилище ОС",
+      "license": "MIT",
+      "homepage": "https://github.com/nozikov/yandex-mcp",
+      "repository": "https://github.com/nozikov/yandex-mcp",
+      "keywords": ["yandex", "metrika", "webmaster", "direct", "wordstat", "analytics", "seo"],
+      "category": "analytics"
+    }
+  ]
+}

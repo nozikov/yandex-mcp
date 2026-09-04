@@ -1,0 +1,37 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.nozikov/yandex-mcp",
+  "title": "Yandex Analytics",
+  "description": "Read-only access to Yandex Metrika, Webmaster, Direct and Wordstat. No runtime dependencies; the OAuth token stays in the OS keystore.",
+  "repository": {
+    "url": "https://github.com/nozikov/yandex-mcp",
+    "source": "github"
+  },
+  "version": "2.1.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "yandex-mcp",
+      "version": "2.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "YANDEX_MCP_DEFAULT_COUNTER",
+          "description": "Metrika counter id used when a tool call omits counter_id",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "YANDEX_MCP_CLIENT_ID",
+          "description": "Yandex OAuth application id; alternative to storing it in the OS keystore",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

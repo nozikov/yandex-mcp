@@ -1,0 +1,15 @@
+{
+  "name": "yandex-mcp",
+  "version": "2.1.0",
+  "description": "Метрика, Вебмастер, Директ и Вордстат в одном MCP-сервере: 15 инструментов, ноль зависимостей, токен в хранилище ОС",
+  "license": "MIT",
+  "author": {
+    "name": "Anton Nozikov",
+    "url": "https://github.com/nozikov"
+  },
+  "homepage": "https://github.com/nozikov/yandex-mcp",
+  "repository": "https://github.com/nozikov/yandex-mcp",
+  "keywords": ["yandex", "metrika", "webmaster", "direct", "wordstat", "analytics", "seo", "ppc", "mcp", "claude-code"],
+  "mcpServers": "./plugin.mcp.json",
+  "skills": "./.claude/skills/"
+}

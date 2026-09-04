@@ -1,7 +1,8 @@
 {
   "mcpServers": {
     "yandex": {
-      "command": "yandex-mcp",
+      "command": "uvx",
+      "args": ["yandex-mcp"],
       "env": {
         "YANDEX_MCP_DEFAULT_COUNTER": "12345678"
       }
