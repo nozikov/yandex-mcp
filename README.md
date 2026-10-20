@@ -10,6 +10,8 @@
 [![Python](https://img.shields.io/pypi/pyversions/yandex-mcp?style=flat-square)](https://pypi.org/project/yandex-mcp/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](./LICENSE)
 
+[![Yandex Analytics MCP server](https://mcprush.com/badge/yandex-analytics-mcp/card.svg)](https://mcprush.com/to/yandex-analytics-mcp?ref=badge)
+
 ```
 > Как изменился трафик за последний месяц и откуда пришёл рост?
 > По каким запросам мы на второй странице — там, где до топа осталось чуть-чуть?
